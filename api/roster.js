@@ -1,5 +1,28 @@
 // api/roster.js
 import { put, list } from '@vercel/blob';
+import defaultStudents from '../defaultStudents.js';
+
+function generateRoster(startDate = "2025-11-17") {
+  const roster = {};
+  const students = [...defaultStudents];
+  let groupIndex = 0;
+
+  // Разбиваем студентов на группы по 4
+  while (students.length > 0) {
+    const group = students.splice(0, 4);
+
+    // Рассчитываем дату: через день (пн, ср, пт)
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + groupIndex * 2);
+
+    const isoDate = date.toISOString().split("T")[0];
+    roster[isoDate] = group.map(s => s.name);
+
+    groupIndex++;
+  }
+
+  return roster;
+}
 
 export default async function handler(req, res) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
@@ -10,13 +33,13 @@ export default async function handler(req, res) {
       const rosterBlob = blobs.find(b => b.pathname === 'roster.json');
 
       if (!rosterBlob) {
-        // 👉 если файла нет — создаём пустой объект расписания
-        const emptyRoster = {};
-        await put('roster.json', JSON.stringify(emptyRoster), {
+        // 👉 если файла нет — генерируем и сохраняем
+        const roster = generateRoster();
+        await put('roster.json', JSON.stringify(roster), {
           contentType: 'application/json',
           token
         });
-        return res.status(200).json(emptyRoster);
+        return res.status(200).json(roster);
       }
 
       const response = await fetch(rosterBlob.url, {
@@ -25,19 +48,19 @@ export default async function handler(req, res) {
       const text = await response.text();
       const parsed = JSON.parse(text || "{}");
 
-      // 👉 если файл пустой — перезаписываем пустым объектом
       if (!parsed || Object.keys(parsed).length === 0) {
-        const emptyRoster = {};
-        await put('roster.json', JSON.stringify(emptyRoster), {
+        const roster = generateRoster();
+        await put('roster.json', JSON.stringify(roster), {
           contentType: 'application/json',
           token
         });
-        return res.status(200).json(emptyRoster);
+        return res.status(200).json(roster);
       }
 
       res.status(200).json(parsed);
     } catch (err) {
-      res.status(200).json({}); // fallback
+      const roster = generateRoster();
+      res.status(200).json(roster);
     }
   }
 
