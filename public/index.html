@@ -22,7 +22,7 @@
       100% { transform: translateY(100vh) rotate(360deg); opacity: 0.7; }
     }
 
-    /* 🌟 Плавное появление блоков */
+    /* 🌟 Плавное появление */
     .fade-in {
       animation: fadeIn 1.5s ease-in-out;
     }
@@ -91,12 +91,12 @@
 
     // --- Работа с API ---
     async function getRoster() {
-      const res = await fetch('/api/roster');
+      const res = await fetch('/api/roster?ts=' + Date.now()); // анти-кэш
       return await res.json();
     }
 
     async function getStudents() {
-      const res = await fetch('/api/students');
+      const res = await fetch('/api/students?ts=' + Date.now()); // анти-кэш
       return await res.json();
     }
 
