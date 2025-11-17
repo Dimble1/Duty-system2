@@ -1,3 +1,4 @@
+// api/roster.js
 import { put, list } from '@vercel/blob';
 
 export default async function handler(req, res) {
@@ -5,22 +6,38 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      // получаем список всех blob
       const { blobs } = await list({ token });
       const rosterBlob = blobs.find(b => b.pathname === 'roster.json');
 
       if (!rosterBlob) {
-        return res.status(200).json({});
+        // 👉 если файла нет — создаём пустой объект расписания
+        const emptyRoster = {};
+        await put('roster.json', JSON.stringify(emptyRoster), {
+          contentType: 'application/json',
+          token
+        });
+        return res.status(200).json(emptyRoster);
       }
 
-      // читаем содержимое через fetch
       const response = await fetch(rosterBlob.url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const text = await response.text();
-      res.status(200).json(JSON.parse(text || "{}"));
+      const parsed = JSON.parse(text || "{}");
+
+      // 👉 если файл пустой — перезаписываем пустым объектом
+      if (!parsed || Object.keys(parsed).length === 0) {
+        const emptyRoster = {};
+        await put('roster.json', JSON.stringify(emptyRoster), {
+          contentType: 'application/json',
+          token
+        });
+        return res.status(200).json(emptyRoster);
+      }
+
+      res.status(200).json(parsed);
     } catch (err) {
-      res.status(500).json({ error: 'Ошибка чтения расписания' });
+      res.status(200).json({}); // fallback
     }
   }
 
@@ -40,4 +57,3 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Метод не поддерживается' });
   }
 }
-
