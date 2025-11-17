@@ -1,4 +1,4 @@
-// Единый список студентов
+// defaultStudents.js
 const defaultStudents = [
   {id:1, name:"Абдамитов Акыл Абдамитович", status:"Активен", role:""},
   {id:2, name:"Абдыкеримова Адеми Мирлановна", status:"Активен", role:""},
@@ -28,3 +28,5 @@ const defaultStudents = [
   {id:26, name:"Шерикова Адель Бозумбаевна", status:"Активен", role:""},
   {id:27, name:"Шукуров Салих Жумабекович", status:"Активен", role:""}
 ];
+
+export default defaultStudents;
