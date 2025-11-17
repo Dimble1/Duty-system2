@@ -15,7 +15,7 @@
       animation-name: fall;
       animation-timing-function: linear;
       animation-iteration-count: infinite;
-      pointer-events: none; /* чтобы не мешал кликам */
+      pointer-events: none;
     }
     @keyframes fall {
       0% { transform: translateY(0) rotate(0deg); opacity: 1; }
@@ -68,7 +68,7 @@
   <!-- Список дежурных -->
   <div class="bg-white rounded-xl shadow-lg p-6 mb-8 fade-in">
     <h2 class="text-2xl font-bold text-indigo-600 mb-4 flex items-center gap-2">
-      📅 Список дежурных
+      📅 Список дежурных (2 недели)
     </h2>
     <ul id="roster-list" class="space-y-2"></ul>
   </div>
@@ -101,9 +101,27 @@
     function renderRoster(roster) {
       const list = document.getElementById('roster-list');
       list.innerHTML = '';
-      Object.keys(roster).forEach(date => {
+
+      const today = new Date().toISOString().split("T")[0]; // формат YYYY-MM-DD
+      const dates = Object.keys(roster).sort();
+
+      // показываем только ближайшие 2 недели
+      const twoWeeksLater = new Date();
+      twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+
+      dates.forEach(date => {
+        const d = new Date(date);
+        if (d > twoWeeksLater) return;
+
         const li = document.createElement('li');
-        li.className = "bg-indigo-50 border-l-4 border-indigo-400 p-3 rounded shadow-sm hover:scale-105 transition";
+        const isToday = (date === today);
+
+        li.className = `p-3 rounded shadow-sm transition ${
+          isToday 
+            ? "bg-green-200 border-l-4 border-green-600 font-bold" 
+            : "bg-indigo-50 border-l-4 border-indigo-400 hover:scale-105"
+        }`;
+
         li.textContent = `${date}: ${roster[date].join(', ')}`;
         list.appendChild(li);
       });
