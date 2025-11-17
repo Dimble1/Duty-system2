@@ -41,7 +41,6 @@
       100% { transform: scale(1); }
     }
 
-    /* ✅ Разрешаем скролл */
     html, body {
       min-height: 100%;
       overflow-y: auto;
@@ -54,21 +53,24 @@
   <div id="snow"></div>
 
   <!-- Заголовок -->
-  <h1 class="text-4xl font-extrabold text-center text-indigo-700 mb-10 drop-shadow-lg fade-in">
+  <h1 class="text-4xl font-extrabold text-center text-indigo-700 mb-6 drop-shadow-lg fade-in">
     🌟 Система дежурств 🌟
   </h1>
 
-  <!-- Кнопка входа -->
-  <div class="flex justify-center mb-10 fade-in">
+  <!-- Кнопки -->
+  <div class="flex justify-center gap-4 mb-10 fade-in">
     <button id="loginBtn" class="pulse bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl shadow-lg hover:scale-105 transition">
       🔑 Войти
+    </button>
+    <button id="refreshBtn" class="bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg hover:scale-105 transition">
+      🔄 Обновить
     </button>
   </div>
 
   <!-- Список дежурных -->
   <div class="bg-white rounded-xl shadow-lg p-6 mb-8 fade-in">
     <h2 class="text-2xl font-bold text-indigo-600 mb-4 flex items-center gap-2">
-      📅 Список дежурных (2 недели)
+      📅 Список дежурных
     </h2>
     <ul id="roster-list" class="space-y-2"></ul>
   </div>
@@ -101,27 +103,9 @@
     function renderRoster(roster) {
       const list = document.getElementById('roster-list');
       list.innerHTML = '';
-
-      const today = new Date().toISOString().split("T")[0]; // формат YYYY-MM-DD
-      const dates = Object.keys(roster).sort();
-
-      // показываем только ближайшие 2 недели
-      const twoWeeksLater = new Date();
-      twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
-
-      dates.forEach(date => {
-        const d = new Date(date);
-        if (d > twoWeeksLater) return;
-
+      Object.keys(roster).forEach(date => {
         const li = document.createElement('li');
-        const isToday = (date === today);
-
-        li.className = `p-3 rounded shadow-sm transition ${
-          isToday 
-            ? "bg-green-200 border-l-4 border-green-600 font-bold" 
-            : "bg-indigo-50 border-l-4 border-indigo-400 hover:scale-105"
-        }`;
-
+        li.className = "bg-indigo-50 border-l-4 border-indigo-400 p-3 rounded shadow-sm hover:scale-105 transition";
         li.textContent = `${date}: ${roster[date].join(', ')}`;
         list.appendChild(li);
       });
@@ -142,13 +126,19 @@
     }
 
     // 📥 Загрузка данных
-    (async () => {
+    async function loadData() {
       const roster = await getRoster();
       renderRoster(roster);
 
       const students = await getStudents();
       renderStudents(students);
-    })();
+    }
+
+    // При загрузке страницы
+    loadData();
+
+    // Кнопка "Обновить"
+    document.getElementById("refreshBtn").addEventListener("click", loadData);
 
     // ❄️ Генерация снежинок
     function createSnowflakes() {
