@@ -2,194 +2,68 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Панель зама</title>
+  <title>Зам — Система дежурств</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-  <!-- Вход -->
-  <div id="login" class="bg-white p-6 rounded-xl shadow-md w-96">
-    <h2 class="text-2xl font-bold mb-4">Вход (Зам)</h2>
-    <input id="username" type="text" placeholder="Логин" class="w-full p-2 border rounded mb-3">
-    <input id="password" type="password" placeholder="Пароль" class="w-full p-2 border rounded mb-3">
-    <button id="loginBtn" class="w-full bg-indigo-600 text-white py-2 rounded">Войти</button>
+<body class="bg-gray-100 min-h-screen p-6">
+
+  <h1 class="text-3xl font-bold text-center text-indigo-700 mb-6">📅 Панель зама</h1>
+
+  <!-- Управление расписанием -->
+  <div class="bg-white rounded-xl shadow-lg p-6">
+    <h2 class="text-2xl font-bold text-indigo-600 mb-4">Редактирование расписания</h2>
+    <form id="editRosterForm" class="flex gap-2 mb-4">
+      <input type="date" id="rosterDate" class="border p-2 rounded"/>
+      <input type="text" id="rosterNames" placeholder="Имена через запятую" class="border p-2 flex-1 rounded"/>
+      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">💾 Сохранить</button>
+    </form>
+    <ul id="zam-roster-list" class="space-y-2"></ul>
   </div>
 
-  <!-- Панель -->
-  <div id="panel" class="hidden w-full max-w-6xl p-6">
-    <h2 class="text-2xl font-bold mb-4">Панель зама</h2>
-
-    <!-- Управление студентами -->
-    <div class="bg-white p-4 rounded shadow mb-6">
-      <h3 class="text-xl font-semibold mb-3">Студенты: статусы</h3>
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-3 py-2">ФИО</th>
-            <th class="px-3 py-2">Статус</th>
-            <th class="px-3 py-2">Действия</th>
-          </tr>
-        </thead>
-        <tbody id="student-table"></tbody>
-      </table>
-      <button id="saveBtn" class="mt-3 bg-green-600 text-white px-4 py-2 rounded">Сохранить изменения</button>
-    </div>
-
-    <!-- Управление дежурными -->
-    <div class="bg-white p-4 rounded shadow">
-      <h3 class="text-xl font-semibold mb-3">Замены в расписании</h3>
-      <label class="block mb-2">Дата:</label>
-      <select id="dateSelect" class="border p-2 rounded mb-3"></select>
-      <label class="block mb-2">Кого заменить:</label>
-      <select id="replaceFrom" class="border p-2 rounded mb-3"></select>
-      <label class="block mb-2">Замена на:</label>
-      <select id="replaceTo" class="border p-2 rounded mb-3"></select>
-      <button id="replaceBtn" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded">Заменить</button>
-    </div>
-  </div>
-
-  <script>
-    let students = [];
-
-    // Авторизация
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
-      try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json' },
-          body: JSON.stringify({ username, password, role: 'zam' })
-        });
-        const data = await res.json();
-        if (data.ok) {
-          document.getElementById('login').classList.add('hidden');
-          document.getElementById('panel').classList.remove('hidden');
-          students = await getStudents();
-          renderStudents();
-          fillRosterSelectors();
-        } else {
-          alert(data.error || 'Ошибка входа');
-        }
-      } catch (e) {
-        alert('Сервер недоступен');
-      }
-    });
-
-    // --- Работа с API ---
-    async function getStudents() {
-      const res = await fetch('/api/students');
-      return await res.json();
-    }
-    async function saveStudents(list) {
-      await fetch('/api/students', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify(list)
-      });
-    }
+  <script type="module">
+    // --- API запросы ---
     async function getRoster() {
       const res = await fetch('/api/roster');
       return await res.json();
     }
-    async function saveRoster(roster) {
+
+    async function saveRoster(date, names) {
       await fetch('/api/roster', {
         method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify(roster)
+        headers: { 'Content-Type': 'application/json', 'x-user-role': 'zam' },
+        body: JSON.stringify({ date, names })
       });
     }
 
-    // --- Работа со студентами ---
-    function renderStudents() {
-      const tbody = document.getElementById('student-table');
-      tbody.innerHTML = '';
-      students.forEach((s, i) => {
-        tbody.innerHTML += `
-          <tr>
-            <td class="px-3 py-2">${s.name}</td>
-            <td class="px-3 py-2">${s.status}</td>
-            <td class="px-3 py-2">
-              <button class="bg-indigo-500 text-white px-2 py-1 rounded" onclick="toggleStatus(${i})">Статус</button>
-            </td>
-          </tr>`;
+    // --- Рендер расписания ---
+    function renderRoster(roster) {
+      const list = document.getElementById('zam-roster-list');
+      list.innerHTML = '';
+      Object.keys(roster).forEach(date => {
+        const li = document.createElement('li');
+        li.className = "bg-indigo-50 border-l-4 border-indigo-400 p-3 rounded";
+        li.textContent = `${date}: ${roster[date].join(', ')}`;
+        list.appendChild(li);
       });
     }
 
-    window.toggleStatus = function(index){
-      const s = students[index];
-      if (!s) return;
-      if (s.status==='Активен') s.status='Редко посещает';
-      else if (s.status==='Редко посещает') s.status='Сбежал';
-      else s.status='Активен';
-      renderStudents();
-    }
-
-    document.getElementById('saveBtn').addEventListener('click', async ()=>{
-      await saveStudents(students);
-      alert('Изменения студентов сохранены');
+    // --- Обработчик формы ---
+    document.getElementById('editRosterForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const date = document.getElementById('rosterDate').value;
+      const names = document.getElementById('rosterNames').value.split(',').map(n => n.trim());
+      await saveRoster(date, names);
+      const roster = await getRoster();
+      renderRoster(roster);
     });
 
-    // --- Работа с расписанием ---
-    async function fillRosterSelectors() {
+    // 📥 Загрузка данных при входе
+    (async () => {
       const roster = await getRoster();
-      const dateSel = document.getElementById('dateSelect');
-      dateSel.innerHTML = '';
-      Object.keys(roster).forEach(date=>{
-        dateSel.innerHTML += `<option value="${date}">${date}</option>`;
-      });
-      fillReplaceSelectors(roster);
-    }
-
-    async function fillReplaceSelectors(roster) {
-      const dateKey = document.getElementById('dateSelect').value;
-      const fromSel = document.getElementById('replaceFrom');
-      const toSel = document.getElementById('replaceTo');
-      fromSel.innerHTML = '';
-      toSel.innerHTML = '';
-      const names = students.map(s=>s.name);
-      (roster[dateKey]||[]).forEach(n=>{
-        fromSel.innerHTML += `<option value="${n}">${n}</option>`;
-      });
-      names.forEach(n=>{
-        toSel.innerHTML += `<option value="${n}">${n}</option>`;
-      });
-    }
-
-    document.getElementById('dateSelect').addEventListener('change', async ()=>{
-      const roster = await getRoster();
-      fillReplaceSelectors(roster);
-    });
-
-    // 🔥 Замена с копированием статуса
-    document.getElementById('replaceBtn').addEventListener('click', async ()=>{
-      const roster = await getRoster();
-      const dateKey = document.getElementById('dateSelect').value;
-      const fromName = document.getElementById('replaceFrom').value;
-      const toName = document.getElementById('replaceTo').value;
-      if (fromName===toName) return alert('Нельзя заменить на самого себя');
-
-      const idx = roster[dateKey].indexOf(fromName);
-      if (idx !== -1) {
-        roster[dateKey][idx] = toName;
-
-        const fromStudent = students.find(s => s.name === fromName);
-        const toStudent   = students.find(s => s.name === toName);
-
-        if (fromStudent && toStudent) {
-          toStudent.status = fromStudent.status;
-          // 🚫 роль не меняем!
-        }
-
-        await saveRoster(roster);
-        await saveStudents(students);
-
-        alert(`Заменён ${fromName} на ${toName} в дежурстве ${dateKey}. 
-               ${toName} теперь имеет статус "${fromStudent.status}".`);
-
-        renderStudents();
-      }
-    });
+      renderRoster(roster);
+    })();
   </script>
 </body>
 </html>
+
