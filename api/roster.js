@@ -1,7 +1,7 @@
 // duty-system2/api/roster.js
-import { put, get } from '@vercel/blob';
+const { put, get } = require('@vercel/blob');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
 
   if (req.method === 'GET') {
@@ -10,7 +10,6 @@ export default async function handler(req, res) {
       const text = await body.text();
       res.status(200).json(JSON.parse(text));
     } catch (err) {
-      // если файла ещё нет — возвращаем пустой объект
       res.status(200).json({});
     }
   }
@@ -31,4 +30,4 @@ export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     res.status(405).json({ error: 'Метод не поддерживается' });
   }
-}
+};
