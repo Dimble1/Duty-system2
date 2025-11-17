@@ -1,4 +1,4 @@
-import { put, list, download } from '@vercel/blob';
+import { put, list } from '@vercel/blob';
 
 export default async function handler(req, res) {
   const role = req.headers['x-user-role'];
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Файл students.json не найден' });
     }
 
-    const response = await download(file.url);
+    const response = await fetch(file.url);
     const students = await response.json();
     return res.status(200).json(students);
   }
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
     const { blobs } = await list();
     const file = blobs.find(b => b.pathname === 'students.json');
-    const response = await download(file.url);
+    const response = await fetch(file.url);
     const students = await response.json();
 
     students.push({ name, status: 'Активен', role: 'student' });
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
 
     const { blobs } = await list();
     const file = blobs.find(b => b.pathname === 'students.json');
-    const response = await download(file.url);
+    const response = await fetch(file.url);
     let students = await response.json();
 
     students = students.map(s =>
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
 
     const { blobs } = await list();
     const file = blobs.find(b => b.pathname === 'students.json');
-    const response = await download(file.url);
+    const response = await fetch(file.url);
     let students = await response.json();
 
     students = students.filter(s => s.name !== name);
