@@ -1,11 +1,11 @@
-import { put, list, download } from '@vercel/blob';
+import { put, list } from '@vercel/blob';
 
 export default async function handler(req, res) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
 
   if (req.method === 'GET') {
     try {
-      // ищем файл roster.json
+      // получаем список всех blob
       const { blobs } = await list({ token });
       const rosterBlob = blobs.find(b => b.pathname === 'roster.json');
 
@@ -13,7 +13,10 @@ export default async function handler(req, res) {
         return res.status(200).json({});
       }
 
-      const response = await download(rosterBlob.url, { token });
+      // читаем содержимое через fetch
+      const response = await fetch(rosterBlob.url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const text = await response.text();
       res.status(200).json(JSON.parse(text || "{}"));
     } catch (err) {
@@ -37,3 +40,4 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Метод не поддерживается' });
   }
 }
+
