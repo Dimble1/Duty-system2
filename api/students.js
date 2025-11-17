@@ -1,12 +1,19 @@
-import { put, get } from '@vercel/blob';
+import { put, list, download } from '@vercel/blob';
 
 export default async function handler(req, res) {
-  const role = req.headers['x-user-role']; // роль из localStorage → заголовок
+  const role = req.headers['x-user-role'];
 
   // Чтение списка студентов
   if (req.method === 'GET') {
-    const blob = await get('students.json');
-    const students = JSON.parse(await blob.text());
+    const { blobs } = await list();
+    const file = blobs.find(b => b.pathname === 'students.json');
+
+    if (!file) {
+      return res.status(404).json({ error: 'Файл students.json не найден' });
+    }
+
+    const response = await download(file.url);
+    const students = await response.json();
     return res.status(200).json(students);
   }
 
@@ -17,8 +24,11 @@ export default async function handler(req, res) {
     }
 
     const { name } = req.body;
-    const blob = await get('students.json');
-    const students = JSON.parse(await blob.text());
+
+    const { blobs } = await list();
+    const file = blobs.find(b => b.pathname === 'students.json');
+    const response = await download(file.url);
+    const students = await response.json();
 
     students.push({ name, status: 'Активен', role: 'student' });
 
@@ -33,8 +43,11 @@ export default async function handler(req, res) {
     }
 
     const { name, status, role: newRole } = req.body;
-    const blob = await get('students.json');
-    let students = JSON.parse(await blob.text());
+
+    const { blobs } = await list();
+    const file = blobs.find(b => b.pathname === 'students.json');
+    const response = await download(file.url);
+    let students = await response.json();
 
     students = students.map(s =>
       s.name === name ? { ...s, status: status || s.status, role: newRole || s.role } : s
@@ -51,8 +64,11 @@ export default async function handler(req, res) {
     }
 
     const { name } = req.body;
-    const blob = await get('students.json');
-    let students = JSON.parse(await blob.text());
+
+    const { blobs } = await list();
+    const file = blobs.find(b => b.pathname === 'students.json');
+    const response = await download(file.url);
+    let students = await response.json();
 
     students = students.filter(s => s.name !== name);
 
