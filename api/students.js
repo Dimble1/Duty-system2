@@ -1,59 +1,64 @@
-// api/students.js
-import { put, list } from '@vercel/blob';
-import defaultStudents from '../defaultStudents.js';
+import { put, get } from '@vercel/blob';
 
 export default async function handler(req, res) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const role = req.headers['x-user-role']; // роль из localStorage → заголовок
 
+  // Чтение списка студентов
   if (req.method === 'GET') {
-    try {
-      const { blobs } = await list({ token });
-      const studentsBlob = blobs.find(b => b.pathname === 'students.json');
-
-      if (!studentsBlob) {
-        // 👉 если файла нет — создаём его с дефолтным списком
-        await put('students.json', JSON.stringify(defaultStudents), {
-          contentType: 'application/json',
-          token
-        });
-        return res.status(200).json(defaultStudents);
-      }
-
-      const response = await fetch(studentsBlob.url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const text = await response.text();
-      const parsed = JSON.parse(text || "[]");
-
-      // 👉 если файл пустой — возвращаем дефолтный список
-      if (!parsed || parsed.length === 0) {
-        await put('students.json', JSON.stringify(defaultStudents), {
-          contentType: 'application/json',
-          token
-        });
-        return res.status(200).json(defaultStudents);
-      }
-
-      res.status(200).json(parsed);
-    } catch (err) {
-      // 👉 при любой ошибке — fallback
-      res.status(200).json(defaultStudents);
-    }
+    const blob = await get('students.json');
+    const students = JSON.parse(await blob.text());
+    return res.status(200).json(students);
   }
 
+  // Добавление студента (только админ)
   if (req.method === 'POST') {
-    try {
-      await put('students.json', JSON.stringify(req.body), {
-        contentType: 'application/json',
-        token
-      });
-      res.status(200).json({ ok: true });
-    } catch (err) {
-      res.status(500).json({ error: 'Ошибка сохранения списка студентов' });
+    if (role !== 'admin') {
+      return res.status(403).json({ error: 'Нет прав' });
     }
+
+    const { name } = req.body;
+    const blob = await get('students.json');
+    const students = JSON.parse(await blob.text());
+
+    students.push({ name, status: 'Активен', role: 'student' });
+
+    await put('students.json', JSON.stringify(students), { access: 'public' });
+    return res.status(200).json({ success: true, students });
   }
 
-  if (req.method !== 'GET' && req.method !== 'POST') {
-    res.status(405).json({ error: 'Метод не поддерживается' });
+  // Обновление статуса/роли (только админ)
+  if (req.method === 'PUT') {
+    if (role !== 'admin') {
+      return res.status(403).json({ error: 'Нет прав' });
+    }
+
+    const { name, status, role: newRole } = req.body;
+    const blob = await get('students.json');
+    let students = JSON.parse(await blob.text());
+
+    students = students.map(s =>
+      s.name === name ? { ...s, status: status || s.status, role: newRole || s.role } : s
+    );
+
+    await put('students.json', JSON.stringify(students), { access: 'public' });
+    return res.status(200).json({ success: true, students });
   }
+
+  // Удаление студента (только админ)
+  if (req.method === 'DELETE') {
+    if (role !== 'admin') {
+      return res.status(403).json({ error: 'Нет прав' });
+    }
+
+    const { name } = req.body;
+    const blob = await get('students.json');
+    let students = JSON.parse(await blob.text());
+
+    students = students.filter(s => s.name !== name);
+
+    await put('students.json', JSON.stringify(students), { access: 'public' });
+    return res.status(200).json({ success: true, students });
+  }
+
+  res.status(405).json({ error: 'Метод не поддерживается' });
 }
