@@ -1,24 +1,29 @@
-// duty-system2/api/roster.js
-import { put, get } from '@vercel/blob';
+import { put, list, download } from '@vercel/blob';
 
 export default async function handler(req, res) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
 
   if (req.method === 'GET') {
     try {
-      const { body } = await get('roster.json', { token });
-      const text = await body.text();
-      res.status(200).json(JSON.parse(text));
+      // ищем файл roster.json
+      const { blobs } = await list({ token });
+      const rosterBlob = blobs.find(b => b.pathname === 'roster.json');
+
+      if (!rosterBlob) {
+        return res.status(200).json({});
+      }
+
+      const response = await download(rosterBlob.url, { token });
+      const text = await response.text();
+      res.status(200).json(JSON.parse(text || "{}"));
     } catch (err) {
-      // если файла ещё нет — возвращаем пустой объект
-      res.status(200).json({});
+      res.status(500).json({ error: 'Ошибка чтения расписания' });
     }
   }
 
   if (req.method === 'POST') {
     try {
-      const data = req.body;
-      await put('roster.json', JSON.stringify(data), {
+      await put('roster.json', JSON.stringify(req.body), {
         contentType: 'application/json',
         token
       });
@@ -32,4 +37,3 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Метод не поддерживается' });
   }
 }
-
