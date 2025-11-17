@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Главная — Система дежурств</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* ❄️ Снег */
+    .snowflake {
+      position: fixed;
+      top: -10px;
+      color: white;
+      font-size: 1.2em;
+      animation-name: fall;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+    @keyframes fall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(360deg); opacity: 0.7; }
+    }
+
+    /* 🌟 Плавное появление блоков */
+    .fade-in {
+      animation: fadeIn 1.5s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ✨ Пульсация кнопки */
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 min-h-screen p-6 relative overflow-hidden">
+
+  <!-- ❄️ Снег -->
+  <div id="snow"></div>
+
+  <!-- Заголовок -->
+  <h1 class="text-4xl font-extrabold text-center text-indigo-700 mb-10 drop-shadow-lg fade-in">
+    🌟 Система дежурств 🌟
+  </h1>
+
+  <!-- Кнопка входа -->
+  <div class="flex justify-center mb-10 fade-in">
+    <button id="loginBtn" class="pulse bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl shadow-lg hover:scale-105 transition">
+      🔑 Войти
+    </button>
+  </div>
+
+  <!-- Список дежурных -->
+  <div class="bg-white rounded-xl shadow-lg p-6 mb-8 fade-in">
+    <h2 class="text-2xl font-bold text-indigo-600 mb-4 flex items-center gap-2">
+      📅 Список дежурных
+    </h2>
+    <ul id="roster-list" class="space-y-2"></ul>
+  </div>
+
+  <!-- Список студентов -->
+  <div class="bg-white rounded-xl shadow-lg p-6 fade-in">
+    <h2 class="text-2xl font-bold text-purple-600 mb-4 flex items-center gap-2">
+      👩‍🎓 Список студентов
+    </h2>
+    <ul id="student-list" class="space-y-2"></ul>
+  </div>
+
+  <script type="module">
+    // Кнопка входа → переход на login.html
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      window.location.href = "login.html";
+    });
+
+    // --- Работа с API ---
+    async function getRoster() {
+      const res = await fetch('/api/roster');
+      return await res.json();
+    }
+
+    async function getStudents() {
+      const res = await fetch('/api/students');
+      return await res.json();
+    }
+
+    function renderRoster(roster) {
+      const list = document.getElementById('roster-list');
+      list.innerHTML = '';
+      Object.keys(roster).forEach(date => {
+        const li = document.createElement('li');
+        li.className = "bg-indigo-50 border-l-4 border-indigo-400 p-3 rounded shadow-sm hover:scale-105 transition";
+        li.textContent = `${date}: ${roster[date].join(', ')}`;
+        list.appendChild(li);
+      });
+    }
+
+    function renderStudents(students) {
+      const list = document.getElementById('student-list');
+      list.innerHTML = '';
+      students.forEach(s => {
+        const li = document.createElement('li');
+        li.className = "bg-purple-50 border-l-4 border-purple-400 p-3 rounded shadow-sm flex justify-between hover:bg-purple-100 transition";
+        li.innerHTML = `
+          <span class="font-semibold">${s.name}</span>
+          <span class="italic text-gray-600">${s.status} — ${s.role}</span>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    // 📥 Загрузка данных
+    (async () => {
+      const roster = await getRoster();
+      renderRoster(roster);
+
+      const students = await getStudents();
+      renderStudents(students);
+    })();
+
+    // ❄️ Генерация снежинок
+    function createSnowflakes() {
+      const snowContainer = document.getElementById('snow');
+      for (let i = 0; i < 30; i++) {
+        const snowflake = document.createElement('div');
+        snowflake.className = 'snowflake';
+        snowflake.textContent = '❄';
+        snowflake.style.left = Math.random() * 100 + 'vw';
+        snowflake.style.animationDuration = (5 + Math.random() * 5) + 's';
+        snowflake.style.fontSize = (10 + Math.random() * 20) + 'px';
+        snowContainer.appendChild(snowflake);
+      }
+    }
+    createSnowflakes();
+  </script>
+</body>
+</html>

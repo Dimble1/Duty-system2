@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Вход в систему дежурств</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white p-6 rounded shadow w-96">
+    <h1 class="text-2xl font-bold mb-4">Вход</h1>
+    <form id="login-form" class="space-y-3">
+      <input type="text" id="username" placeholder="Логин" class="border p-2 w-full" required>
+      <input type="password" id="password" placeholder="Пароль" class="border p-2 w-full" required>
+      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded w-full">Войти</button>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (data.ok) {
+          // Сохраняем роль в localStorage
+          localStorage.setItem("role", data.role);
+
+          // Перенаправляем по роли
+          if (data.role === "admin") {
+            window.location.href = "admin.html";
+          } else if (data.role === "zam") {
+            window.location.href = "zam.html";
+          } else {
+            window.location.href = "index.html";
+          }
+        } else {
+          alert("Ошибка: " + data.error);
+        }
+      } catch (err) {
+        alert("Ошибка соединения с сервером");
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>

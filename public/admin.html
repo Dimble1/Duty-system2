@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Админ — Система дежурств</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+  <h1 class="text-2xl font-bold mb-6">Панель администратора</h1>
+
+  <!-- Управление студентами -->
+  <div class="bg-white p-4 rounded shadow mb-6">
+    <h2 class="text-xl font-semibold mb-3">Студенты</h2>
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-3 py-2">ФИО</th>
+          <th class="px-3 py-2">Статус</th>
+          <th class="px-3 py-2">Роль</th>
+          <th class="px-3 py-2">Действия</th>
+        </tr>
+      </thead>
+      <tbody id="student-table"></tbody>
+    </table>
+    <button id="saveBtn" class="mt-3 bg-green-600 text-white px-4 py-2 rounded">Сохранить изменения</button>
+  </div>
+
+  <!-- Управление расписанием -->
+  <div class="bg-white p-4 rounded shadow">
+    <h2 class="text-xl font-semibold mb-3">Замены в расписании</h2>
+    <label class="block mb-2">Дата:</label>
+    <select id="dateSelect" class="border p-2 rounded mb-3"></select>
+    <label class="block mb-2">Кого заменить:</label>
+    <select id="replaceFrom" class="border p-2 rounded mb-3"></select>
+    <label class="block mb-2">Замена на:</label>
+    <select id="replaceTo" class="border p-2 rounded mb-3"></select>
+    <button id="replaceBtn" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded">Заменить</button>
+  </div>
+
+  <script type="module">
+    // 🔒 Проверка роли
+    const role = localStorage.getItem("role");
+    if (role !== "admin") {
+      alert("Доступ запрещён. Войдите как админ.");
+      window.location.href = "login.html";
+    }
+
+    // --- API ---
+    async function getStudents() {
+      const res = await fetch('/api/students');
+      return await res.json();
+    }
+    async function saveStudents(list) {
+      await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify(list)
+      });
+    }
+    async function getRoster() {
+      const res = await fetch('/api/roster');
+      return await res.json();
+    }
+    async function saveRoster(roster) {
+      await fetch('/api/roster', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify(roster)
+      });
+    }
+
+    // --- Работа со студентами ---
+    function renderStudents() {
+      const tbody = document.getElementById('student-table');
+      tbody.innerHTML = '';
+      students.forEach((s, i) => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="px-3 py-2">${s.name}</td>
+            <td class="px-3 py-2">${s.status}</td>
+            <td class="px-3 py-2">
+              <select onchange="changeRole(${i}, this.value)" class="border p-1 rounded">
+                <option value="student" ${s.role==="student"?"selected":""}>Студент</option>
+                <option value="zam" ${s.role==="zam"?"selected":""}>Зам</option>
+                <option value="starosta" ${s.role==="starosta"?"selected":""}>Староста</option>
+              </select>
+            </td>
+            <td class="px-3 py-2">
+              <button class="bg-indigo-500 text-white px-2 py-1 rounded" onclick="toggleStatus(${i})">Статус</button>
+              <button class="bg-red-500 text-white px-2 py-1 rounded" onclick="deleteStudent(${i})">Удалить</button>
+            </td>
+          </tr>`;
+      });
+    }
+
+    window.toggleStatus = function(index){
+      const s = students[index];
+      if (!s) return;
+      if (s.status==='Активен') s.status='Редко посещает';
+      else if (s.status==='Редко посещает') s.status='Сбежал';
+      else s.status='Активен';
+      renderStudents();
+    }
+
+    window.changeRole = function(index, newRole) {
+      students[index].role = newRole;
+    };
+
+    window.deleteStudent = function(index) {
+      students.splice(index, 1);
+      renderStudents();
+    };
+
+    document.getElementById('saveBtn').addEventListener('click', async ()=>{
+      await saveStudents(students);
+      alert('Изменения сохранены');
+    });
+
+    // --- Работа с расписанием ---
+    async function fillRosterSelectors() {
+      const roster = await getRoster();
+      const dateSel = document.getElementById('dateSelect');
+      dateSel.innerHTML = '';
+      Object.keys(roster).forEach(date=>{
+        dateSel.innerHTML += `<option value="${date}">${date}</option>`;
+      });
+      fillReplaceSelectors(roster);
+    }
+
+    async function fillReplaceSelectors(roster) {
+      const dateKey = document.getElementById('dateSelect').value;
+      const fromSel = document.getElementById('replaceFrom');
+      const toSel = document.getElementById('replaceTo');
+      fromSel.innerHTML = '';
+      toSel.innerHTML = '';
+      const names = students.map(s=>s.name);
+      (roster[dateKey]||[]).forEach(n=>{
+        fromSel.innerHTML += `<option value="${n}">${n}</option>`;
+      });
+      names.forEach(n=>{
+        toSel.innerHTML += `<option value="${n}">${n}</option>`;
+      });
+    }
+
+    document.getElementById('dateSelect').addEventListener('change', async ()=>{
+      const roster = await getRoster();
+      fillReplaceSelectors(roster);
+    });
+
+    // 🔥 Замена с копированием статуса и роли
+    document.getElementById('replaceBtn').addEventListener('click', async ()=>{
+      const roster = await getRoster();
+      const dateKey = document.getElementById('dateSelect').value;
+      const fromName = document.getElementById('replaceFrom').value;
+      const toName = document.getElementById('replaceTo').value;
+
+      if (fromName === toName) return alert('Нельзя заменить на самого себя');
+
+      const idx = roster[dateKey].indexOf(fromName);
+      if (idx !== -1) {
+        roster[dateKey][idx] = toName;
+
+        const fromStudent = students.find(s => s.name === fromName);
+        const toStudent   = students.find(s => s.name === toName);
+
+        if (fromStudent && toStudent) {
+          toStudent.status = fromStudent.status;
+          toStudent.role   = fromStudent.role;
+        }
+
+        await saveRoster(roster);
+        await saveStudents(students);
+
+        alert(`Заменён ${fromName} на ${toName} в дежурстве ${dateKey}. 
+               ${toName} теперь имеет статус "${fromStudent.status}" и роль "${fromStudent.role}".`);
+
+        renderStudents();
+      }
+    });
+
+    // 📥 Загрузка при старте
+    let students = [];
+    (async () => {
+      students = await getStudents();
+      renderStudents();
+      fillRosterSelectors();
+    })();
+  </script>
+</body>
+</html>
