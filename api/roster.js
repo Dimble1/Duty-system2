@@ -1,3 +1,4 @@
+// duty-system2/api/roster.js
 import { put, get } from '@vercel/blob';
 
 export default async function handler(req, res) {
@@ -9,6 +10,7 @@ export default async function handler(req, res) {
       const text = await body.text();
       res.status(200).json(JSON.parse(text));
     } catch (err) {
+      // если файла ещё нет — возвращаем пустой объект
       res.status(200).json({});
     }
   }
@@ -24,5 +26,9 @@ export default async function handler(req, res) {
     } catch (err) {
       res.status(500).json({ error: 'Ошибка сохранения расписания' });
     }
+  }
+
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.status(405).json({ error: 'Метод не поддерживается' });
   }
 }
