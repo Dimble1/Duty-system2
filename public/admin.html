@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Админ — Система дежурств</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
@@ -16,7 +16,7 @@
 
     <!-- Добавить студента -->
     <form id="addStudentForm" class="flex gap-2 mb-4">
-      <input type="text" id="studentName" placeholder="Имя студента" class="border p-2 flex-1 rounded"/>
+      <input type="text" id="studentName" placeholder="Имя студента" class="border p-2 flex-1 rounded" />
       <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">➕ Добавить</button>
     </form>
 
@@ -28,22 +28,27 @@
   <div class="bg-white rounded-xl shadow-lg p-6">
     <h2 class="text-2xl font-bold text-indigo-600 mb-4">📅 Редактирование расписания</h2>
     <form id="editRosterForm" class="flex gap-2 mb-4">
-      <input type="date" id="rosterDate" class="border p-2 rounded"/>
-      <input type="text" id="rosterNames" placeholder="Имена через запятую" class="border p-2 flex-1 rounded"/>
+      <input type="date" id="rosterDate" class="border p-2 rounded" />
+      <input type="text" id="rosterNames" placeholder="Имена через запятую" class="border p-2 flex-1 rounded" />
       <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">💾 Сохранить</button>
     </form>
     <ul id="roster-list" class="space-y-2"></ul>
   </div>
 
-  <script type="module">
-    // --- API запросы ---
+  <script>
+    // --- Работа с API ---
+    async function getJSON(url, opts = {}) {
+      const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'ts=' + Date.now(), opts);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }
+
     async function getStudents() {
-      const res = await fetch('/api/students?ts=' + Date.now());
-      return await res.json();
+      return getJSON('/api/students');
     }
 
     async function addStudent(name) {
-      await fetch('/api/students', {
+      return getJSON('/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
         body: JSON.stringify({ name })
@@ -51,7 +56,7 @@
     }
 
     async function updateStudent(name, status, role) {
-      await fetch('/api/students', {
+      return getJSON('/api/students', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
         body: JSON.stringify({ name, status, role })
@@ -59,7 +64,7 @@
     }
 
     async function deleteStudent(name) {
-      await fetch('/api/students', {
+      return getJSON('/api/students', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
         body: JSON.stringify({ name })
@@ -67,34 +72,65 @@
     }
 
     async function getRoster() {
-      const res = await fetch('/api/roster?ts=' + Date.now());
-      return await res.json();
+      return getJSON('/api/roster');
     }
 
     async function saveRoster(date, names) {
-      await fetch('/api/roster', {
+      return getJSON('/api/roster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
         body: JSON.stringify({ date, names })
       });
     }
 
-    // --- Рендер студентов ---
+    // --- Рендер студентов (без inline onclick) ---
     function renderStudents(students) {
       const list = document.getElementById('student-list');
       list.innerHTML = '';
       students.forEach(s => {
         const li = document.createElement('li');
-        li.className = "bg-red-50 border-l-4 border-red-400 p-3 rounded flex justify-between items-center";
-        li.innerHTML = `
-          <span><b>${s.name}</b> — ${s.status} (${s.role})</span>
-          <div class="flex gap-2">
-            <button class="bg-blue-600 text-white px-2 py-1 rounded" onclick="updateStudent('${s.name}','Активен','student').then(loadData)">Актив</button>
-            <button class="bg-yellow-600 text-white px-2 py-1 rounded" onclick="updateStudent('${s.name}','Неактивен','student').then(loadData)">Неактив</button>
-            <button class="bg-purple-600 text-white px-2 py-1 rounded" onclick="updateStudent('${s.name}','Активен','zam').then(loadData)">Зам</button>
-            <button class="bg-red-600 text-white px-2 py-1 rounded" onclick="deleteStudent('${s.name}').then(loadData)">❌ Удалить</button>
-          </div>
-        `;
+        li.className = 'bg-red-50 border-l-4 border-red-400 p-3 rounded flex justify-between items-center gap-2';
+
+        const left = document.createElement('span');
+        left.innerHTML = `<b>${s.name}</b> — ${s.status} (${s.role})`;
+
+        const actions = document.createElement('div');
+        actions.className = 'flex flex-wrap gap-2';
+
+        const btnActive = document.createElement('button');
+        btnActive.className = 'bg-blue-600 text-white px-2 py-1 rounded';
+        btnActive.textContent = 'Актив';
+        btnActive.addEventListener('click', async () => {
+          await updateStudent(s.name, 'Активен', 'student');
+          await loadData();
+        });
+
+        const btnInactive = document.createElement('button');
+        btnInactive.className = 'bg-yellow-600 text-white px-2 py-1 rounded';
+        btnInactive.textContent = 'Неактив';
+        btnInactive.addEventListener('click', async () => {
+          await updateStudent(s.name, 'Неактивен', 'student');
+          await loadData();
+        });
+
+        const btnZam = document.createElement('button');
+        btnZam.className = 'bg-purple-600 text-white px-2 py-1 rounded';
+        btnZam.textContent = 'Зам';
+        btnZam.addEventListener('click', async () => {
+          await updateStudent(s.name, 'Активен', 'zam');
+          await loadData();
+        });
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'bg-red-600 text-white px-2 py-1 rounded';
+        btnDelete.textContent = '❌ Удалить';
+        btnDelete.addEventListener('click', async () => {
+          await deleteStudent(s.name);
+          await loadData();
+        });
+
+        actions.append(btnActive, btnInactive, btnZam, btnDelete);
+        li.append(left, actions);
         list.appendChild(li);
       });
     }
@@ -105,7 +141,7 @@
       list.innerHTML = '';
       Object.keys(roster).forEach(date => {
         const li = document.createElement('li');
-        li.className = "bg-indigo-50 border-l-4 border-indigo-400 p-3 rounded";
+        li.className = 'bg-indigo-50 border-l-4 border-indigo-400 p-3 rounded';
         li.textContent = `${date}: ${roster[date].join(', ')}`;
         list.appendChild(li);
       });
@@ -114,36 +150,54 @@
     // --- Обработчики форм ---
     document.getElementById('addStudentForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const name = document.getElementById('studentName').value;
-      await addStudent(name);
-      document.getElementById('studentName').value = '';
-      loadData();
+      const nameEl = document.getElementById('studentName');
+      const name = nameEl.value.trim();
+      if (!name) return;
+      try {
+        await addStudent(name);
+        nameEl.value = '';
+        await loadData();
+      } catch (err) {
+        alert('Ошибка добавления: ' + err.message);
+      }
     });
 
     document.getElementById('editRosterForm').addEventListener('submit', async e => {
       e.preventDefault();
       const date = document.getElementById('rosterDate').value;
-      const names = document.getElementById('rosterNames').value.split(',').map(n => n.trim());
-      await saveRoster(date, names);
-      document.getElementById('rosterNames').value = '';
-      loadData();
+      const raw = document.getElementById('rosterNames').value;
+      const names = raw.split(',').map(n => n.trim()).filter(Boolean);
+      if (!date || names.length === 0) return;
+      try {
+        await saveRoster(date, names);
+        document.getElementById('rosterNames').value = '';
+        await loadData();
+      } catch (err) {
+        alert('Ошибка сохранения расписания: ' + err.message);
+      }
     });
 
-    // 📥 Загрузка данных
+    // --- Загрузка данных + анти-кэш ---
     async function loadData() {
-      const students = await getStudents();
-      renderStudents(students);
+      try {
+        const students = await getStudents();
+        renderStudents(students);
+      } catch (err) {
+        console.error('students load error', err);
+        alert('Не удалось загрузить студентов');
+      }
 
-      const roster = await getRoster();
-      renderRoster(roster);
+      try {
+        const roster = await getRoster();
+        renderRoster(roster);
+      } catch (err) {
+        console.error('roster load error', err);
+        alert('Не удалось загрузить расписание');
+      }
     }
 
-    // При загрузке страницы
+    // Загружаем при старте
     loadData();
-
-    // Делаем функции глобальными для кнопок
-    window.updateStudent = updateStudent;
-    window.deleteStudent = deleteStudent;
   </script>
 </body>
 </html>
