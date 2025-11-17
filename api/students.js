@@ -11,7 +11,11 @@ export default async function handler(req, res) {
       const studentsBlob = blobs.find(b => b.pathname === 'students.json');
 
       if (!studentsBlob) {
-        // если файла нет — возвращаем дефолтный список
+        // 👉 если файла нет — создаём его с дефолтным списком
+        await put('students.json', JSON.stringify(defaultStudents), {
+          contentType: 'application/json',
+          token
+        });
         return res.status(200).json(defaultStudents);
       }
 
@@ -19,9 +23,21 @@ export default async function handler(req, res) {
         headers: { Authorization: `Bearer ${token}` }
       });
       const text = await response.text();
-      res.status(200).json(JSON.parse(text || "[]"));
+      const parsed = JSON.parse(text || "[]");
+
+      // 👉 если файл пустой — возвращаем дефолтный список
+      if (!parsed || parsed.length === 0) {
+        await put('students.json', JSON.stringify(defaultStudents), {
+          contentType: 'application/json',
+          token
+        });
+        return res.status(200).json(defaultStudents);
+      }
+
+      res.status(200).json(parsed);
     } catch (err) {
-      res.status(500).json({ error: 'Ошибка чтения списка студентов' });
+      // 👉 при любой ошибке — fallback
+      res.status(200).json(defaultStudents);
     }
   }
 
