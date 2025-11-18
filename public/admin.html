@@ -10,22 +10,16 @@
 
   <h1 class="text-3xl font-bold text-center text-red-700 mb-6">⚙️ Панель администратора</h1>
 
-  <!-- Управление студентами -->
   <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
     <h2 class="text-2xl font-bold text-red-600 mb-4">👩‍🎓 Управление студентами</h2>
-
-    <!-- Добавить студента -->
     <form id="addStudentForm" class="flex gap-2 mb-4">
       <input type="text" id="studentName" placeholder="Имя студента" class="border p-2 flex-1 rounded" />
       <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">➕ Добавить</button>
     </form>
-
-    <!-- Список студентов -->
     <ul id="student-list" class="space-y-2"></ul>
   </div>
 
-  <!-- Управление расписанием -->
-  <div class="bg-white rounded-xl shadow-lg p-6">
+  <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
     <h2 class="text-2xl font-bold text-indigo-600 mb-4">📅 Редактирование расписания</h2>
     <form id="editRosterForm" class="flex gap-2 mb-4">
       <input type="date" id="rosterDate" class="border p-2 rounded" />
@@ -35,18 +29,24 @@
     <ul id="roster-list" class="space-y-2"></ul>
   </div>
 
+  <div class="bg-white rounded-xl shadow-lg p-6">
+    <h2 class="text-2xl font-bold text-purple-600 mb-4">🔄 Замена</h2>
+    <form id="replaceForm" class="flex gap-2 mb-4">
+      <input type="text" id="replaceFrom" placeholder="Кого заменить" class="border p-2 rounded" />
+      <input type="text" id="replaceTo" placeholder="На кого" class="border p-2 rounded" />
+      <input type="date" id="replaceDate" class="border p-2 rounded" />
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">🔄 Заменить</button>
+    </form>
+  </div>
+
   <script>
-    // --- Работа с API ---
     async function getJSON(url, opts = {}) {
       const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'ts=' + Date.now(), opts);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     }
 
-    async function getStudents() {
-      return getJSON('/api/students');
-    }
-
+    async function getStudents() { return getJSON('/api/students'); }
     async function addStudent(name) {
       return getJSON('/api/students', {
         method: 'POST',
@@ -54,7 +54,6 @@
         body: JSON.stringify({ name })
       });
     }
-
     async function updateStudent(name, status, role) {
       return getJSON('/api/students', {
         method: 'PUT',
@@ -62,7 +61,6 @@
         body: JSON.stringify({ name, status, role })
       });
     }
-
     async function deleteStudent(name) {
       return getJSON('/api/students', {
         method: 'DELETE',
@@ -71,10 +69,7 @@
       });
     }
 
-    async function getRoster() {
-      return getJSON('/api/roster');
-    }
-
+    async function getRoster() { return getJSON('/api/roster'); }
     async function saveRoster(date, names) {
       return getJSON('/api/roster', {
         method: 'POST',
@@ -83,120 +78,86 @@
       });
     }
 
-    // --- Рендер студентов (без inline onclick) ---
     function renderStudents(students) {
       const list = document.getElementById('student-list');
       list.innerHTML = '';
       students.forEach(s => {
         const li = document.createElement('li');
         li.className = 'bg-red-50 border-l-4 border-red-400 p-3 rounded flex justify-between items-center gap-2';
-
         const left = document.createElement('span');
         left.innerHTML = `<b>${s.name}</b> — ${s.status} (${s.role})`;
-
         const actions = document.createElement('div');
         actions.className = 'flex flex-wrap gap-2';
-
-        const btnActive = document.createElement('button');
-        btnActive.className = 'bg-blue-600 text-white px-2 py-1 rounded';
-        btnActive.textContent = 'Актив';
-        btnActive.addEventListener('click', async () => {
-          await updateStudent(s.name, 'Активен', 'student');
-          await loadData();
-        });
-
-        const btnInactive = document.createElement('button');
-        btnInactive.className = 'bg-yellow-600 text-white px-2 py-1 rounded';
-        btnInactive.textContent = 'Неактив';
-        btnInactive.addEventListener('click', async () => {
-          await updateStudent(s.name, 'Неактивен', 'student');
-          await loadData();
-        });
-
-        const btnZam = document.createElement('button');
-        btnZam.className = 'bg-purple-600 text-white px-2 py-1 rounded';
-        btnZam.textContent = 'Зам';
-        btnZam.addEventListener('click', async () => {
-          await updateStudent(s.name, 'Активен', 'zam');
-          await loadData();
-        });
-
-        const btnDelete = document.createElement('button');
-        btnDelete.className = 'bg-red-600 text-white px-2 py-1 rounded';
-        btnDelete.textContent = '❌ Удалить';
-        btnDelete.addEventListener('click', async () => {
-          await deleteStudent(s.name);
-          await loadData();
-        });
-
-        actions.append(btnActive, btnInactive, btnZam, btnDelete);
+        const btnActive = mkBtn('Актив', 'bg-blue-600', async () => { await updateStudent(s.name, 'Активен', 'student'); await loadData(); });
+        const btnZam = mkBtn('Зам', 'bg-purple-600', async () => { await updateStudent(s.name, 'Активен', 'zam'); await loadData(); });
+        const btnStarosta = mkBtn('Староста', 'bg-pink-600', async () => { await updateStudent(s.name, 'Активен', 'starosta'); await loadData(); });
+        const btnRunaway = mkBtn('Сбежал', 'bg-yellow-600', async () => { await updateStudent(s.name, 'Сбежал', s.role); await loadData(); });
+        const btnDelete = mkBtn('❌ Удалить', 'bg-red-600', async () => { await deleteStudent(s.name); await loadData(); });
+        actions.append(btnActive, btnZam, btnStarosta, btnRunaway, btnDelete);
         li.append(left, actions);
         list.appendChild(li);
       });
     }
 
-    // --- Рендер расписания ---
+    function mkBtn(text, color, handler) {
+      const btn = document.createElement('button');
+      btn.className = `${color} text-white px-2 py-1 rounded`;
+      btn.textContent = text;
+      btn.addEventListener('click', handler);
+      return btn;
+    }
+
     function renderRoster(roster) {
       const list = document.getElementById('roster-list');
       list.innerHTML = '';
       Object.keys(roster).forEach(date => {
         const li = document.createElement('li');
         li.className = 'bg-indigo-50 border-l-4 border-indigo-400 p-3 rounded';
-        li.textContent = `${date}: ${roster[date].join(', ')}`;
+        const names = roster[date].map(n => n.includes('Сбежал') ? `${n} ❌` : n);
+        li.textContent = `${date}: ${names.join(', ')}`;
         list.appendChild(li);
       });
     }
 
-    // --- Обработчики форм ---
     document.getElementById('addStudentForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const nameEl = document.getElementById('studentName');
-      const name = nameEl.value.trim();
+      const name = document.getElementById('studentName').value.trim();
       if (!name) return;
-      try {
-        await addStudent(name);
-        nameEl.value = '';
-        await loadData();
-      } catch (err) {
-        alert('Ошибка добавления: ' + err.message);
-      }
+      await addStudent(name);
+      document.getElementById('studentName').value = '';
+      await loadData();
     });
 
     document.getElementById('editRosterForm').addEventListener('submit', async e => {
       e.preventDefault();
       const date = document.getElementById('rosterDate').value;
-      const raw = document.getElementById('rosterNames').value;
-      const names = raw.split(',').map(n => n.trim()).filter(Boolean);
-      if (!date || names.length === 0) return;
-      try {
-        await saveRoster(date, names);
-        document.getElementById('rosterNames').value = '';
+      const names = document.getElementById('rosterNames').value.split(',').map(n => n.trim()).filter(Boolean);
+      await saveRoster(date, names);
+      document.getElementById('rosterNames').value = '';
+      await loadData();
+    });
+
+    document.getElementById('replaceForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const from = document.getElementById('replaceFrom').value.trim();
+      const to = document.getElementById('replaceTo').value.trim();
+      const date = document.getElementById('replaceDate').value;
+      if (!from || !to || !date) return;
+      const roster = await getRoster();
+      if (roster[date]) {
+        roster[date] = roster[date].map(n => n === from ? to : n);
+        await saveRoster(date, roster[date]);
         await loadData();
-      } catch (err) {
-        alert('Ошибка сохранения расписания: ' + err.message);
       }
     });
 
-    // --- Загрузка данных + анти-кэш ---
     async function loadData() {
-      try {
-        const students = await getStudents();
-        renderStudents(students);
-      } catch (err) {
-        console.error('students load error', err);
-        alert('Не удалось загрузить студентов');
-      }
-
-      try {
-        const roster = await getRoster();
-        renderRoster(roster);
-      } catch (err) {
-        console.error('roster load error', err);
-        alert('Не удалось загрузить расписание');
-      }
+      const students = await getStudents();
+      renderStudents(students);
+      const roster = await getRoster();
+      renderRoster(roster);
     }
 
-    // Загружаем при старте
     loadData();
   </script>
 </body>
