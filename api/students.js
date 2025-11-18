@@ -20,13 +20,11 @@ export default async function handler(req, res) {
     return students;
   }
 
-  // GET
   if (req.method === 'GET') {
     const students = await readStudents();
-    return res.status(200).json(students);
+    return res.status(200).json(Array.isArray(students) ? students : []);
   }
 
-  // POST
   if (req.method === 'POST') {
     if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
     const { name } = req.body;
@@ -39,7 +37,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, students });
   }
 
-  // PUT
   if (req.method === 'PUT') {
     if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
     const { name, status, role: newRole } = req.body;
@@ -54,7 +51,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, students });
   }
 
-  // DELETE
   if (req.method === 'DELETE') {
     if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
     const { name } = req.body;
