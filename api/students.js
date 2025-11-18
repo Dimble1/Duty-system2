@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     const file = blobs.find(b => b.pathname === 'students.json');
 
     if (!file) {
-      return res.status(404).json({ error: 'Файл students.json не найден' });
+      return res.status(200).json([]); // если файла нет, возвращаем пустой массив
     }
 
     const response = await fetch(file.url);
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(200).json(students);
   }
 
-  // Добавление студента (только админ)
+  // Добавление студента
   if (req.method === 'POST') {
     if (role !== 'admin') {
       return res.status(403).json({ error: 'Нет прав' });
@@ -27,16 +27,24 @@ export default async function handler(req, res) {
 
     const { blobs } = await list();
     const file = blobs.find(b => b.pathname === 'students.json');
-    const response = await fetch(file.url);
-    const students = await response.json();
+    let students = [];
+
+    if (file) {
+      const response = await fetch(file.url);
+      students = await response.json();
+    }
 
     students.push({ name, status: 'Активен', role: 'student' });
 
-    await put('students.json', JSON.stringify(students), { access: 'public' });
+    await put('students.json', JSON.stringify(students), {
+      access: 'public',
+      allowOverwrite: true
+    });
+
     return res.status(200).json({ success: true, students });
   }
 
-  // Обновление статуса/роли (только админ)
+  // Обновление статуса/роли
   if (req.method === 'PUT') {
     if (role !== 'admin') {
       return res.status(403).json({ error: 'Нет прав' });
@@ -46,18 +54,26 @@ export default async function handler(req, res) {
 
     const { blobs } = await list();
     const file = blobs.find(b => b.pathname === 'students.json');
-    const response = await fetch(file.url);
-    let students = await response.json();
+    let students = [];
+
+    if (file) {
+      const response = await fetch(file.url);
+      students = await response.json();
+    }
 
     students = students.map(s =>
       s.name === name ? { ...s, status: status || s.status, role: newRole || s.role } : s
     );
 
-    await put('students.json', JSON.stringify(students), { access: 'public' });
+    await put('students.json', JSON.stringify(students), {
+      access: 'public',
+      allowOverwrite: true
+    });
+
     return res.status(200).json({ success: true, students });
   }
 
-  // Удаление студента (только админ)
+  // Удаление студента
   if (req.method === 'DELETE') {
     if (role !== 'admin') {
       return res.status(403).json({ error: 'Нет прав' });
@@ -67,12 +83,20 @@ export default async function handler(req, res) {
 
     const { blobs } = await list();
     const file = blobs.find(b => b.pathname === 'students.json');
-    const response = await fetch(file.url);
-    let students = await response.json();
+    let students = [];
+
+    if (file) {
+      const response = await fetch(file.url);
+      students = await response.json();
+    }
 
     students = students.filter(s => s.name !== name);
 
-    await put('students.json', JSON.stringify(students), { access: 'public' });
+    await put('students.json', JSON.stringify(students), {
+      access: 'public',
+      allowOverwrite: true
+    });
+
     return res.status(200).json({ success: true, students });
   }
 
