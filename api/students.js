@@ -1,36 +1,44 @@
 import { put, list } from '@vercel/blob';
 
+let studentsCache = null;
+
+// Чтение студентов (с кэшем)
+async function readStudents() {
+  if (studentsCache) return studentsCache;
+
+  const { blobs } = await list();
+  const file = blobs.find(b => b.pathname === 'students.json');
+  if (!file) return [];
+
+  const response = await fetch(file.url);
+  const text = await response.text();
+
+  if (text.trim().startsWith('<')) return [];
+
+  try {
+    studentsCache = JSON.parse(text);
+  } catch {
+    studentsCache = [];
+  }
+  return studentsCache;
+}
+
+// Сохранение студентов (обновляем кэш и blob)
+async function saveStudents(students) {
+  studentsCache = students;
+  await put('students.json', JSON.stringify(students), {
+    access: 'public',
+    allowOverwrite: true
+  });
+}
+
 export default async function handler(req, res) {
   const role = req.headers['x-user-role'];
-
-  async function readStudents() {
-    const { blobs } = await list();
-    const file = blobs.find(b => b.pathname === 'students.json');
-    let students = [];
-    if (file) {
-      const response = await fetch(file.url);
-      const text = await response.text();
-
-      // Проверка: если вместо JSON пришёл HTML
-      if (text.trim().startsWith('<')) {
-        console.error("students.json отсутствует или поврежден, получен HTML вместо JSON");
-        return [];
-      }
-
-      try {
-        students = JSON.parse(text);
-      } catch (err) {
-        console.error("Ошибка парсинга students.json:", err);
-        students = [];
-      }
-    }
-    return students;
-  }
 
   // GET
   if (req.method === 'GET') {
     const students = await readStudents();
-    return res.status(200).json(Array.isArray(students) ? students : []);
+    return res.status(200).json(students);
   }
 
   // POST — добавить студента
@@ -38,19 +46,9 @@ export default async function handler(req, res) {
     if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
     const { name } = req.body;
     let students = await readStudents();
-    if (!Array.isArray(students)) students = [];
     students.push({ name, status: 'Активен', role: 'student' });
-
-    if (students.length === 0) {
-      return res.status(400).json({ error: "Нельзя сохранить пустой список" });
-    }
-
-    console.log("Сохраняем студентов:", students);
-    await put('students.json', JSON.stringify(students), {
-      access: 'public',
-      allowOverwrite: true
-    });
-    return res.status(200).json({ success: true, students });
+    await saveStudents(students);
+    return res.status(200).json(students); // ⚡ сразу список
   }
 
   // PUT — обновить статус/роль
@@ -58,22 +56,11 @@ export default async function handler(req, res) {
     if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
     const { name, status, role: newRole } = req.body;
     let students = await readStudents();
-    if (!Array.isArray(students)) students = [];
-
     students = students.map(s =>
       s.name === name ? { ...s, status: status || s.status, role: newRole || s.role } : s
     );
-
-    if (students.length === 0) {
-      return res.status(400).json({ error: "Нельзя сохранить пустой список" });
-    }
-
-    console.log("Обновляем студентов:", students);
-    await put('students.json', JSON.stringify(students), {
-      access: 'public',
-      allowOverwrite: true
-    });
-    return res.status(200).json({ success: true, students });
+    await saveStudents(students);
+    return res.status(200).json(students); // ⚡ сразу список
   }
 
   // DELETE — удалить студента
@@ -81,20 +68,9 @@ export default async function handler(req, res) {
     if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
     const { name } = req.body;
     let students = await readStudents();
-    if (!Array.isArray(students)) students = [];
-
     students = students.filter(s => s.name !== name);
-
-    if (students.length === 0) {
-      return res.status(400).json({ error: "Нельзя сохранить пустой список" });
-    }
-
-    console.log("Удаляем студента, новый список:", students);
-    await put('students.json', JSON.stringify(students), {
-      access: 'public',
-      allowOverwrite: true
-    });
-    return res.status(200).json({ success: true, students });
+    await saveStudents(students);
+    return res.status(200).json(students); // ⚡ сразу список
   }
 
   res.status(405).json({ error: 'Метод не поддерживается' });
