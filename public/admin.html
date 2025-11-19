@@ -1,249 +1,182 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Админ — Система дежурств</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <title>Админ панель</title>
   <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1, h2 { margin-bottom: 10px; }
+    .student, .roster-item { margin: 5px 0; }
+    button { margin-left: 5px; }
+    select { margin-left: 5px; }
     .spinner {
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid white;
-      border-radius: 50%;
-      width: 14px;
-      height: 14px;
-      animation: spin 1s linear infinite;
       display: inline-block;
-      vertical-align: middle;
-      margin-left: 6px;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #fff;
+      border-top: 2px solid #000;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
-
-  <h1 class="text-3xl font-bold text-center text-red-700 mb-6">⚙️ Панель администратора</h1>
-
-  <!-- Управление студентами -->
-  <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-    <h2 class="text-2xl font-bold text-red-600 mb-4">👩‍🎓 Управление студентами</h2>
-    <form id="addStudentForm" class="flex gap-2 mb-4">
-      <input type="text" id="studentName" placeholder="Имя студента" class="border p-2 flex-1 rounded" />
-      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">➕ Добавить</button>
-    </form>
-    <ul id="student-list" class="space-y-2"></ul>
-  </div>
-
-  <!-- Управление расписанием -->
-  <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-    <h2 class="text-2xl font-bold text-indigo-600 mb-4">📅 Редактирование расписания</h2>
-    <form id="editRosterForm" class="flex gap-2 mb-4">
-      <input type="date" id="rosterDate" class="border p-2 rounded" />
-      <input type="text" id="rosterNames" placeholder="Имена через запятую" class="border p-2 flex-1 rounded" />
-      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">💾 Сохранить</button>
-    </form>
-    <ul id="roster-list" class="space-y-2"></ul>
-  </div>
-
-  <!-- Замена -->
-  <div class="bg-white rounded-xl shadow-lg p-6">
-    <h2 class="text-2xl font-bold text-purple-600 mb-4">🔄 Замена</h2>
-    <form id="replaceForm" class="flex gap-2 mb-4">
-      <input type="date" id="replaceDate" class="border p-2 rounded" />
-      <select id="replaceFrom" class="border p-2 rounded"></select>
-      <select id="replaceTo" class="border p-2 rounded"></select>
-      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">🔄 Заменить</button>
-    </form>
-  </div>
+<body>
+  <h1>Админ панель</h1>
+  <div id="students"></div>
+  <div id="roster"></div>
 
   <script>
+    let busy = false;
     let studentsCache = [];
 
-    async function getJSON(url, opts = {}) {
-      const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'ts=' + Date.now(), opts);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
+    async function getStudents() {
+      const res = await fetch('/api/students');
+      return await res.json();
     }
 
-    async function getStudents() { return getJSON('/api/students'); }
-    async function addStudent(name) {
-      return getJSON('/api/students', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
-        body: JSON.stringify({ name })
-      });
+    async function getRoster() {
+      const res = await fetch('/api/roster');
+      return await res.json();
     }
+
     async function updateStudent(name, status, role) {
-      return getJSON('/api/students', {
+      await fetch('/api/students', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
         body: JSON.stringify({ name, status, role })
       });
     }
-    async function deleteStudent(name) {
-      return getJSON('/api/students', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
-        body: JSON.stringify({ name })
-      });
-    }
-
-    async function getRoster() { return getJSON('/api/roster'); }
-    async function saveRoster(date, names) {
-      return getJSON('/api/roster', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
-        body: JSON.stringify({ date, names })
-      });
-    }
 
     function withLoading(btn, handler) {
       return async () => {
+        if (busy) return;
+        busy = true;
         const originalText = btn.textContent;
         btn.disabled = true;
         btn.textContent = originalText + ' ';
         const spinner = document.createElement('span');
         spinner.className = 'spinner';
         btn.appendChild(spinner);
-
         try {
-          await handler(); // ждём весь процесс (update + loadData)
+          await handler();
         } finally {
           btn.disabled = false;
           btn.textContent = originalText;
+          busy = false;
         }
       };
     }
 
     function renderStudents(students) {
       studentsCache = students;
-      const list = document.getElementById('student-list');
-      list.innerHTML = '';
+      const div = document.getElementById('students');
+      div.innerHTML = '<h2>Студенты</h2>';
       students.forEach(s => {
-        const li = document.createElement('li');
-        li.className = 'bg-red-50 border-l-4 border-red-400 p-3 rounded flex justify-between items-center gap-2';
-        const left = document.createElement('span');
-        left.innerHTML = `<b>${s.name}</b> — ${s.status} (${s.role})`;
-        const actions = document.createElement('div');
-        actions.className = 'flex flex-wrap gap-2';
+        const el = document.createElement('div');
+        el.className = 'student';
+        el.textContent = `${s.name} — ${s.status} — ${s.role}`;
 
-        const btnActive = mkBtn('Актив', 'bg-blue-600');
-        btnActive.addEventListener('click', withLoading(btnActive, async () => {
-          await updateStudent(s.name, 'Активен', 'student'); await loadData();
-        }));
-
-        const btnZam = mkBtn('Зам', 'bg-purple-600');
+        const btnZam = document.createElement('button');
+        btnZam.textContent = 'Сделать замом';
         btnZam.addEventListener('click', withLoading(btnZam, async () => {
-          await updateStudent(s.name, 'Активен', 'zam'); await loadData();
+          await updateStudent(s.name, 'Активен', 'zam');
+          s.role = 'zam';
+          s.status = 'Активен';
+          renderStudents(studentsCache);
+          await loadData();
         }));
 
-        const btnStarosta = mkBtn('Староста', 'bg-pink-600');
+        const btnStarosta = document.createElement('button');
+        btnStarosta.textContent = 'Сделать старостой';
         btnStarosta.addEventListener('click', withLoading(btnStarosta, async () => {
-          await updateStudent(s.name, 'Активен', 'starosta'); await loadData();
+          await updateStudent(s.name, 'Активен', 'starosta');
+          s.role = 'starosta';
+          s.status = 'Активен';
+          renderStudents(studentsCache);
+          await loadData();
         }));
 
-        const btnRunaway = mkBtn('Сбежал', 'bg-yellow-600');
-        btnRunaway.addEventListener('click', withLoading(btnRunaway, async () => {
-          await updateStudent(s.name, 'Сбежал', s.role); await loadData();
+        const btnSb = document.createElement('button');
+        btnSb.textContent = 'Сбежал';
+        btnSb.addEventListener('click', withLoading(btnSb, async () => {
+          await updateStudent(s.name, 'Сбежал', s.role);
+          s.status = 'Сбежал';
+          renderStudents(studentsCache);
+          await loadData();
         }));
 
-        const btnRemoveRole = mkBtn('Убрать роль', 'bg-gray-600');
-        btnRemoveRole.addEventListener('click', withLoading(btnRemoveRole, async () => {
-          await updateStudent(s.name, s.status, 'student'); await loadData();
-        }));
-
-        const btnDelete = mkBtn('❌ Удалить', 'bg-red-600');
-        btnDelete.addEventListener('click', withLoading(btnDelete, async () => {
-          await deleteStudent(s.name); await loadData();
-        }));
-
-        actions.append(btnActive, btnZam, btnStarosta, btnRunaway, btnRemoveRole, btnDelete);
-        li.append(left, actions);
-        list.appendChild(li);
+        el.appendChild(btnZam);
+        el.appendChild(btnStarosta);
+        el.appendChild(btnSb);
+        div.appendChild(el);
       });
-    }
-
-    function mkBtn(text, color) {
-      const btn = document.createElement('button');
-      btn.className = `${color} text-white px-2 py-1 rounded`;
-      btn.textContent = text;
-      return btn;
     }
 
     function renderRoster(roster) {
-      const list = document.getElementById('roster-list');
-      list.innerHTML = '';
-      Object.keys(roster).forEach(date => {
-        const li = document.createElement('li');
-        li.className = 'bg-indigo-50 border-l-4 border-indigo-400 p-3 rounded';
-        const names = roster[date].map(n => n.includes('Сбежал') ? `${n} ❌` : n);
-        li.textContent = `${date}: ${names.join(', ')}`;
-        list.appendChild(li);
-      });
-      populateReplaceOptions(roster);
+      const div = document.getElementById('roster');
+      div.innerHTML = '<h2>Дежурство</h2>';
+      for (const [date, names] of Object.entries(roster)) {
+        const el = document.createElement('div');
+        el.className = 'roster-item';
+        el.textContent = `${date}: ${names.join(', ')}`;
+
+        const btnEdit = document.createElement('button');
+        btnEdit.textContent = 'Редактировать';
+        btnEdit.addEventListener('click', () => {
+          const editDiv = document.createElement('div');
+          editDiv.innerHTML = `<strong>Дежурные ${date}</strong>`;
+          names.forEach(name => {
+            const row = document.createElement('div');
+            row.textContent = name;
+
+            const select = document.createElement('select');
+            studentsCache.forEach(st => {
+              const opt = document.createElement('option');
+              opt.value = st.name;
+              opt.textContent = st.name;
+              select.appendChild(opt);
+            });
+
+            const btnReplace = document.createElement('button');
+            btnReplace.textContent = 'Заменить';
+            btnReplace.addEventListener('click', async () => {
+              const replacement = select.value;
+              const newNames = names.map(n => n === name ? replacement : n);
+
+              await fetch('/api/roster', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
+                body: JSON.stringify({ date, names: newNames })
+              });
+              await loadData();
+            });
+
+            row.appendChild(select);
+            row.appendChild(btnReplace);
+            editDiv.appendChild(row);
+          });
+          el.appendChild(editDiv);
+        });
+
+        el.appendChild(btnEdit);
+        div.appendChild(el);
+      }
     }
 
-    function populateReplaceOptions(roster) {
-  const date = document.getElementById('replaceDate').value;
-  const fromSelect = document.getElementById('replaceFrom');
-  const toSelect = document.getElementById('replaceTo');
-  fromSelect.innerHTML = '';
-  toSelect.innerHTML = '';
+    async function loadData() {
+      try {
+        const students = await getStudents();
+        renderStudents(students);
+        const roster = await getRoster();
+        renderRoster(roster);
+      } catch (err) {
+        console.error("Ошибка загрузки:", err);
+      }
+    }
 
-  // если выбрана дата и в расписании есть дежурные
-  if (date && roster[date]) {
-    roster[date].forEach(n => {
-      const opt = document.createElement('option');
-      opt.value = n;
-      opt.textContent = n;
-      fromSelect.appendChild(opt);
-    });
-  }
-
-  // список всех студентов для замены
-  studentsCache.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.name;
-    opt.textContent = s.name;
-    toSelect.appendChild(opt);
-  });
-}
-
-document.getElementById('replaceDate').addEventListener('change', async () => {
-  const roster = await getRoster();
-  populateReplaceOptions(roster);
-});
-
-document.getElementById('replaceForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const from = document.getElementById('replaceFrom').value;
-  const to = document.getElementById('replaceTo').value;
-  const date = document.getElementById('replaceDate').value;
-  if (!from || !to || !date) return;
-
-  const roster = await getRoster();
-  if (roster[date]) {
-    roster[date] = roster[date].map(n => n === from ? to : n);
-    await saveRoster(date, roster[date]);
-    await loadData();
-  }
-});
-
-async function loadData() {
-  try {
-    const students = await getStudents();
-    renderStudents(students);
-    const roster = await getRoster();
-    renderRoster(roster);
-  } catch (err) {
-    console.error("Ошибка загрузки:", err);
-  }
-}
-
-loadData();
-</script>
+    loadData();
+  </script>
 </body>
 </html>
+
