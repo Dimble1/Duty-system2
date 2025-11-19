@@ -1,7 +1,7 @@
-const express = require('express');
-const fs = require('fs');
-const app = express();
+import express from 'express';
+import fs from 'fs';
 
+const app = express();
 app.use(express.json());
 
 // ⚡ Загружаем студентов один раз в память
