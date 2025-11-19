@@ -138,9 +138,9 @@
         btnZam.addEventListener('click', withLoading(btnZam, async () => {
           if (s.role === 'zam') return alert("Этот студент уже зам");
           s.role = 'zam'; s.status = 'Активен';
-          renderStudents(studentsCache);
+          renderStudents(studentsCache); // мгновенное обновление
           await updateStudent(s.name, 'Активен', 'zam');
-          await loadData();
+          setTimeout(loadData, 300); // задержка перед синхронизацией
         }));
 
         const btnStarosta = document.createElement('button');
@@ -150,7 +150,7 @@
           s.role = 'starosta'; s.status = 'Активен';
           renderStudents(studentsCache);
           await updateStudent(s.name, 'Активен', 'starosta');
-          await loadData();
+          setTimeout(loadData, 300);
         }));
 
         const btnSb = document.createElement('button');
@@ -161,7 +161,7 @@
           s.status = 'Сбежал';
           renderStudents(studentsCache);
           await updateStudent(s.name, 'Сбежал', s.role);
-          await loadData();
+          setTimeout(loadData, 300);
         }));
 
         const btnRemoveRole = document.createElement('button');
@@ -173,7 +173,7 @@
           s.status = 'Активен';
           renderStudents(studentsCache);
           await updateStudent(s.name, 'Активен', 'student');
-          await loadData();
+          setTimeout(loadData, 300);
         }));
 
         el.appendChild(btnZam);
@@ -220,7 +220,7 @@
                 headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
                 body: JSON.stringify({ date, names: newNames })
               });
-              await loadData();
+              setTimeout(loadData, 300);
             });
 
             row.appendChild(select);
