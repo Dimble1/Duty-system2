@@ -4,11 +4,67 @@
   <meta charset="UTF-8">
   <title>Админ панель</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h1, h2 { margin-bottom: 10px; }
-    .student, .roster-item { margin: 5px 0; }
-    button { margin-left: 5px; }
-    select { margin-left: 5px; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 20px;
+      background: #f4f6f9;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    h2 {
+      margin-top: 20px;
+      color: #34495e;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+    .card:hover {
+      transform: scale(1.01);
+    }
+    .student, .roster-item {
+      margin: 8px 0;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    button {
+      margin-left: 5px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #3498db;
+      color: #fff;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    .danger {
+      background: #e74c3c;
+    }
+    .danger:hover {
+      background: #c0392b;
+    }
+    .neutral {
+      background: #95a5a6;
+    }
+    .neutral:hover {
+      background: #7f8c8d;
+    }
+    select {
+      margin-left: 5px;
+      padding: 4px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
     .spinner {
       display: inline-block;
       width: 12px;
@@ -23,8 +79,8 @@
 </head>
 <body>
   <h1>Админ панель</h1>
-  <div id="students"></div>
-  <div id="roster"></div>
+  <div id="students" class="card"></div>
+  <div id="roster" class="card"></div>
 
   <script>
     let busy = false;
@@ -80,35 +136,50 @@
         const btnZam = document.createElement('button');
         btnZam.textContent = 'Сделать замом';
         btnZam.addEventListener('click', withLoading(btnZam, async () => {
-          await updateStudent(s.name, 'Активен', 'zam');
-          s.role = 'zam';
-          s.status = 'Активен';
+          if (s.role === 'zam') return alert("Этот студент уже зам");
+          s.role = 'zam'; s.status = 'Активен';
           renderStudents(studentsCache);
+          await updateStudent(s.name, 'Активен', 'zam');
           await loadData();
         }));
 
         const btnStarosta = document.createElement('button');
         btnStarosta.textContent = 'Сделать старостой';
         btnStarosta.addEventListener('click', withLoading(btnStarosta, async () => {
-          await updateStudent(s.name, 'Активен', 'starosta');
-          s.role = 'starosta';
-          s.status = 'Активен';
+          if (s.role === 'starosta') return alert("Этот студент уже староста");
+          s.role = 'starosta'; s.status = 'Активен';
           renderStudents(studentsCache);
+          await updateStudent(s.name, 'Активен', 'starosta');
           await loadData();
         }));
 
         const btnSb = document.createElement('button');
         btnSb.textContent = 'Сбежал';
+        btnSb.className = 'danger';
         btnSb.addEventListener('click', withLoading(btnSb, async () => {
-          await updateStudent(s.name, 'Сбежал', s.role);
+          if (s.status === 'Сбежал') return alert("Этот студент уже отмечен как сбежавший");
           s.status = 'Сбежал';
           renderStudents(studentsCache);
+          await updateStudent(s.name, 'Сбежал', s.role);
+          await loadData();
+        }));
+
+        const btnRemoveRole = document.createElement('button');
+        btnRemoveRole.textContent = 'Убрать роль';
+        btnRemoveRole.className = 'neutral';
+        btnRemoveRole.addEventListener('click', withLoading(btnRemoveRole, async () => {
+          if (s.role === 'student') return alert("У этого студента уже нет роли");
+          s.role = 'student';
+          s.status = 'Активен';
+          renderStudents(studentsCache);
+          await updateStudent(s.name, 'Активен', 'student');
           await loadData();
         }));
 
         el.appendChild(btnZam);
         el.appendChild(btnStarosta);
         el.appendChild(btnSb);
+        el.appendChild(btnRemoveRole);
         div.appendChild(el);
       });
     }
@@ -143,7 +214,7 @@
             btnReplace.addEventListener('click', async () => {
               const replacement = select.value;
               const newNames = names.map(n => n === name ? replacement : n);
-
+              el.textContent = `${date}: ${newNames.join(', ')}`; // мгновенное обновление
               await fetch('/api/roster', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
@@ -179,4 +250,3 @@
   </script>
 </body>
 </html>
-
