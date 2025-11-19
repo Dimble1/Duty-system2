@@ -1,34 +1,101 @@
-import express from 'express';
-import fs from 'fs';
+import { put, list } from '@vercel/blob';
 
-const app = express();
-app.use(express.json());
+export default async function handler(req, res) {
+  const role = req.headers['x-user-role'];
 
-// ⚡ Загружаем студентов один раз в память
-let students = JSON.parse(fs.readFileSync('students.json', 'utf8'));
+  async function readStudents() {
+    const { blobs } = await list();
+    const file = blobs.find(b => b.pathname === 'students.json');
+    let students = [];
+    if (file) {
+      const response = await fetch(file.url);
+      const text = await response.text();
 
-// Получить список студентов
-app.get('/api/students', (req, res) => {
-  res.json(students);
-});
+      // Проверка: если вместо JSON пришёл HTML
+      if (text.trim().startsWith('<')) {
+        console.error("students.json отсутствует или поврежден, получен HTML вместо JSON");
+        return [];
+      }
 
-// Обновить статус/роль студента
-app.put('/api/students', (req, res) => {
-  const { name, status, role } = req.body;
-
-  const idx = students.findIndex(s => s.name === name);
-  if (idx !== -1) {
-    students[idx].status = status;
-    students[idx].role = role;
+      try {
+        students = JSON.parse(text);
+      } catch (err) {
+        console.error("Ошибка парсинга students.json:", err);
+        students = [];
+      }
+    }
+    return students;
   }
 
-  // ⚡ Асинхронно сохраняем в файл
-  fs.writeFile('students.json', JSON.stringify(students, null, 2), err => {
-    if (err) console.error('Ошибка записи:', err);
-  });
+  // GET
+  if (req.method === 'GET') {
+    const students = await readStudents();
+    return res.status(200).json(Array.isArray(students) ? students : []);
+  }
 
-  // ⚡ Сразу возвращаем обновлённый список
-  res.json(students);
-});
+  // POST — добавить студента
+  if (req.method === 'POST') {
+    if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
+    const { name } = req.body;
+    let students = await readStudents();
+    if (!Array.isArray(students)) students = [];
+    students.push({ name, status: 'Активен', role: 'student' });
 
-app.listen(3000, () => console.log('Students API running on port 3000'));
+    if (students.length === 0) {
+      return res.status(400).json({ error: "Нельзя сохранить пустой список" });
+    }
+
+    console.log("Сохраняем студентов:", students);
+    await put('students.json', JSON.stringify(students), {
+      access: 'public',
+      allowOverwrite: true
+    });
+    return res.status(200).json({ success: true, students });
+  }
+
+  // PUT — обновить статус/роль
+  if (req.method === 'PUT') {
+    if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
+    const { name, status, role: newRole } = req.body;
+    let students = await readStudents();
+    if (!Array.isArray(students)) students = [];
+
+    students = students.map(s =>
+      s.name === name ? { ...s, status: status || s.status, role: newRole || s.role } : s
+    );
+
+    if (students.length === 0) {
+      return res.status(400).json({ error: "Нельзя сохранить пустой список" });
+    }
+
+    console.log("Обновляем студентов:", students);
+    await put('students.json', JSON.stringify(students), {
+      access: 'public',
+      allowOverwrite: true
+    });
+    return res.status(200).json({ success: true, students });
+  }
+
+  // DELETE — удалить студента
+  if (req.method === 'DELETE') {
+    if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
+    const { name } = req.body;
+    let students = await readStudents();
+    if (!Array.isArray(students)) students = [];
+
+    students = students.filter(s => s.name !== name);
+
+    if (students.length === 0) {
+      return res.status(400).json({ error: "Нельзя сохранить пустой список" });
+    }
+
+    console.log("Удаляем студента, новый список:", students);
+    await put('students.json', JSON.stringify(students), {
+      access: 'public',
+      allowOverwrite: true
+    });
+    return res.status(200).json({ success: true, students });
+  }
+
+  res.status(405).json({ error: 'Метод не поддерживается' });
+}
