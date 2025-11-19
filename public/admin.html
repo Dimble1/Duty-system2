@@ -108,8 +108,9 @@
         const spinner = document.createElement('span');
         spinner.className = 'spinner';
         btn.appendChild(spinner);
+
         try {
-          await handler();
+          await handler(); // ждём весь процесс (update + loadData)
         } finally {
           btn.disabled = false;
           btn.textContent = originalText;
@@ -243,6 +244,6 @@ async function loadData() {
 }
 
 loadData();
-  </script>
+</script>
 </body>
 </html>
