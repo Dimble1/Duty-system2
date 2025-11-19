@@ -4,24 +4,31 @@ const app = express();
 
 app.use(express.json());
 
-// получить список студентов
+// ⚡ Загружаем студентов один раз в память
+let students = JSON.parse(fs.readFileSync('students.json', 'utf8'));
+
+// Получить список студентов
 app.get('/api/students', (req, res) => {
-  const students = JSON.parse(fs.readFileSync('students.json', 'utf8'));
   res.json(students);
 });
 
-// обновить статус/роль студента
+// Обновить статус/роль студента
 app.put('/api/students', (req, res) => {
   const { name, status, role } = req.body;
-  let students = JSON.parse(fs.readFileSync('students.json', 'utf8'));
 
-  students = students.map(s =>
-    s.name === name ? { ...s, status, role } : s
-  );
+  // Находим студента и обновляем
+  const idx = students.findIndex(s => s.name === name);
+  if (idx !== -1) {
+    students[idx].status = status;
+    students[idx].role = role;
+  }
 
-  fs.writeFileSync('students.json', JSON.stringify(students, null, 2));
+  // ⚡ Асинхронно сохраняем в файл (не блокируем сервер)
+  fs.writeFile('students.json', JSON.stringify(students, null, 2), err => {
+    if (err) console.error('Ошибка записи:', err);
+  });
 
-  // ⚡ возвращаем обновлённый список
+  // ⚡ Сразу возвращаем обновлённый список
   res.json(students);
 });
 
