@@ -16,14 +16,13 @@ app.get('/api/students', (req, res) => {
 app.put('/api/students', (req, res) => {
   const { name, status, role } = req.body;
 
-  // Находим студента и обновляем
   const idx = students.findIndex(s => s.name === name);
   if (idx !== -1) {
     students[idx].status = status;
     students[idx].role = role;
   }
 
-  // ⚡ Асинхронно сохраняем в файл (не блокируем сервер)
+  // ⚡ Асинхронно сохраняем в файл
   fs.writeFile('students.json', JSON.stringify(students, null, 2), err => {
     if (err) console.error('Ошибка записи:', err);
   });
