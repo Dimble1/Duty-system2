@@ -31,4 +31,4 @@ app.put('/api/students', (req, res) => {
   res.json(students);
 });
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+app.listen(3000, () => console.log('Students API running on port 3000'));
