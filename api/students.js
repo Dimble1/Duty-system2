@@ -27,16 +27,25 @@ export default async function handler(req, res) {
     return students;
   }
 
+  // GET
   if (req.method === 'GET') {
     const students = await readStudents();
     return res.status(200).json(Array.isArray(students) ? students : []);
   }
 
+  // POST — добавить студента
   if (req.method === 'POST') {
     if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
     const { name } = req.body;
     let students = await readStudents();
+    if (!Array.isArray(students)) students = [];
     students.push({ name, status: 'Активен', role: 'student' });
+
+    if (students.length === 0) {
+      return res.status(400).json({ error: "Нельзя сохранить пустой список" });
+    }
+
+    console.log("Сохраняем студентов:", students);
     await put('students.json', JSON.stringify(students), {
       access: 'public',
       allowOverwrite: true
@@ -44,13 +53,22 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, students });
   }
 
+  // PUT — обновить статус/роль
   if (req.method === 'PUT') {
     if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
     const { name, status, role: newRole } = req.body;
     let students = await readStudents();
+    if (!Array.isArray(students)) students = [];
+
     students = students.map(s =>
       s.name === name ? { ...s, status: status || s.status, role: newRole || s.role } : s
     );
+
+    if (students.length === 0) {
+      return res.status(400).json({ error: "Нельзя сохранить пустой список" });
+    }
+
+    console.log("Обновляем студентов:", students);
     await put('students.json', JSON.stringify(students), {
       access: 'public',
       allowOverwrite: true
@@ -58,11 +76,20 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, students });
   }
 
+  // DELETE — удалить студента
   if (req.method === 'DELETE') {
     if (role !== 'admin') return res.status(403).json({ error: 'Нет прав' });
     const { name } = req.body;
     let students = await readStudents();
+    if (!Array.isArray(students)) students = [];
+
     students = students.filter(s => s.name !== name);
+
+    if (students.length === 0) {
+      return res.status(400).json({ error: "Нельзя сохранить пустой список" });
+    }
+
+    console.log("Удаляем студента, новый список:", students);
     await put('students.json', JSON.stringify(students), {
       access: 'public',
       allowOverwrite: true
