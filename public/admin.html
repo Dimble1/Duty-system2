@@ -94,11 +94,21 @@
     }
 
     async function updateStudent(name, status, role) {
-      await fetch('/api/students', {
+      const res = await fetch('/api/students', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
         body: JSON.stringify({ name, status, role })
       });
+      return await res.json(); // сервер возвращает обновлённый список студентов
+    }
+
+    async function updateRoster(date, names) {
+      const res = await fetch('/api/roster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
+        body: JSON.stringify({ date, names })
+      });
+      return await res.json(); // сервер возвращает обновлённый список дежурных
     }
 
     function renderStudents(students) {
@@ -115,10 +125,8 @@
         btnZam.onclick = async () => {
           if (s.role === 'zam') return alert("Этот студент уже зам");
           showOverlay();
-          s.role = 'zam'; s.status = 'Активен';
-          renderStudents(studentsCache);
-          await updateStudent(s.name, 'Активен', 'zam');
-          await loadData();
+          const updated = await updateStudent(s.name, 'Активен', 'zam');
+          renderStudents(updated);
           hideOverlay();
         };
 
@@ -127,10 +135,8 @@
         btnStarosta.onclick = async () => {
           if (s.role === 'starosta') return alert("Этот студент уже староста");
           showOverlay();
-          s.role = 'starosta'; s.status = 'Активен';
-          renderStudents(studentsCache);
-          await updateStudent(s.name, 'Активен', 'starosta');
-          await loadData();
+          const updated = await updateStudent(s.name, 'Активен', 'starosta');
+          renderStudents(updated);
           hideOverlay();
         };
 
@@ -140,10 +146,8 @@
         btnSb.onclick = async () => {
           if (s.status === 'Сбежал') return alert("Этот студент уже отмечен как сбежавший");
           showOverlay();
-          s.status = 'Сбежал';
-          renderStudents(studentsCache);
-          await updateStudent(s.name, 'Сбежал', s.role);
-          await loadData();
+          const updated = await updateStudent(s.name, 'Сбежал', s.role);
+          renderStudents(updated);
           hideOverlay();
         };
 
@@ -153,10 +157,8 @@
         btnRemoveRole.onclick = async () => {
           if (s.role === 'student') return alert("У этого студента уже нет роли");
           showOverlay();
-          s.role = 'student'; s.status = 'Активен';
-          renderStudents(studentsCache);
-          await updateStudent(s.name, 'Активен', 'student');
-          await loadData();
+          const updated = await updateStudent(s.name, 'Активен', 'student');
+          renderStudents(updated);
           hideOverlay();
         };
 
@@ -205,13 +207,8 @@
               showOverlay();
               const replacement = select.value;
               const newNames = names.map(n => n === name ? replacement : n);
-              el.textContent = `${date}: ${newNames.join(', ')}`;
-              await fetch('/api/roster', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
-                body: JSON.stringify({ date, names: newNames })
-              });
-              await loadData();
+              const updatedRoster = await updateRoster(date, newNames);
+              renderRoster(updatedRoster);
               hideOverlay();
             };
 
@@ -230,9 +227,9 @@
     async function loadData() {
       try {
         const students = await getStudents();
-        renderStudents(students); // сначала студенты
+        renderStudents(students);
         const roster = await getRoster();
-        renderRoster(roster);     // потом дежурство
+        renderRoster(roster);
       } catch (err) {
         console.error("Ошибка загрузки:", err);
       }
