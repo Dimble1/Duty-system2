@@ -5,6 +5,23 @@
   <title>Админ — Система дежурств</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid white;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
 
@@ -83,6 +100,23 @@
       });
     }
 
+    function withLoading(btn, handler) {
+      return async () => {
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = originalText + ' ';
+        const spinner = document.createElement('span');
+        spinner.className = 'spinner';
+        btn.appendChild(spinner);
+        try {
+          await handler();
+        } finally {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      };
+    }
+
     function renderStudents(students) {
       studentsCache = students;
       const list = document.getElementById('student-list');
@@ -94,23 +128,47 @@
         left.innerHTML = `<b>${s.name}</b> — ${s.status} (${s.role})`;
         const actions = document.createElement('div');
         actions.className = 'flex flex-wrap gap-2';
-        const btnActive = mkBtn('Актив', 'bg-blue-600', async () => { await updateStudent(s.name, 'Активен', 'student'); await loadData(); });
-        const btnZam = mkBtn('Зам', 'bg-purple-600', async () => { await updateStudent(s.name, 'Активен', 'zam'); await loadData(); });
-        const btnStarosta = mkBtn('Староста', 'bg-pink-600', async () => { await updateStudent(s.name, 'Активен', 'starosta'); await loadData(); });
-        const btnRunaway = mkBtn('Сбежал', 'bg-yellow-600', async () => { await updateStudent(s.name, 'Сбежал', s.role); await loadData(); });
-        const btnRemoveRole = mkBtn('Убрать роль', 'bg-gray-600', async () => { await updateStudent(s.name, s.status, 'student'); await loadData(); });
-        const btnDelete = mkBtn('❌ Удалить', 'bg-red-600', async () => { await deleteStudent(s.name); await loadData(); });
+
+        const btnActive = mkBtn('Актив', 'bg-blue-600');
+        btnActive.addEventListener('click', withLoading(btnActive, async () => {
+          await updateStudent(s.name, 'Активен', 'student'); await loadData();
+        }));
+
+        const btnZam = mkBtn('Зам', 'bg-purple-600');
+        btnZam.addEventListener('click', withLoading(btnZam, async () => {
+          await updateStudent(s.name, 'Активен', 'zam'); await loadData();
+        }));
+
+        const btnStarosta = mkBtn('Староста', 'bg-pink-600');
+        btnStarosta.addEventListener('click', withLoading(btnStarosta, async () => {
+          await updateStudent(s.name, 'Активен', 'starosta'); await loadData();
+        }));
+
+        const btnRunaway = mkBtn('Сбежал', 'bg-yellow-600');
+        btnRunaway.addEventListener('click', withLoading(btnRunaway, async () => {
+          await updateStudent(s.name, 'Сбежал', s.role); await loadData();
+        }));
+
+        const btnRemoveRole = mkBtn('Убрать роль', 'bg-gray-600');
+        btnRemoveRole.addEventListener('click', withLoading(btnRemoveRole, async () => {
+          await updateStudent(s.name, s.status, 'student'); await loadData();
+        }));
+
+        const btnDelete = mkBtn('❌ Удалить', 'bg-red-600');
+        btnDelete.addEventListener('click', withLoading(btnDelete, async () => {
+          await deleteStudent(s.name); await loadData();
+        }));
+
         actions.append(btnActive, btnZam, btnStarosta, btnRunaway, btnRemoveRole, btnDelete);
         li.append(left, actions);
         list.appendChild(li);
       });
     }
 
-    function mkBtn(text, color, handler) {
+    function mkBtn(text, color) {
       const btn = document.createElement('button');
       btn.className = `${color} text-white px-2 py-1 rounded`;
       btn.textContent = text;
-      btn.addEventListener('click', handler);
       return btn;
     }
 
@@ -128,93 +186,63 @@
     }
 
     function populateReplaceOptions(roster) {
-      const date = document.getElementById('replaceDate').value;
-      const fromSelect = document.getElementById('replaceFrom');
-      const toSelect = document.getElementById('replaceTo');
-      fromSelect.innerHTML = '';
-      toSelect.innerHTML = '';
-      if (date && roster[date]) {
-        roster[date].forEach(n => {
-          const opt = document.createElement('option');
-          opt.value = n;
-          opt.textContent = n;
-          fromSelect.appendChild(opt);
-        });
-      }
-      studentsCache.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.name;
-        opt.textContent = s.name;
-        toSelect.appendChild(opt);
-      });
-    }
+  const date = document.getElementById('replaceDate').value;
+  const fromSelect = document.getElementById('replaceFrom');
+  const toSelect = document.getElementById('replaceTo');
+  fromSelect.innerHTML = '';
+  toSelect.innerHTML = '';
 
-    document.getElementById('addStudentForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const name = document.getElementById('studentName').value.trim();
-      if (!name) return;
-      await addStudent(name);
-      document.getElementById('studentName').value = '';
-      await loadData();
+  // если выбрана дата и в расписании есть дежурные
+  if (date && roster[date]) {
+    roster[date].forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n;
+      opt.textContent = n;
+      fromSelect.appendChild(opt);
     });
+  }
 
-    document.getElementById('editRosterForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const date = document.getElementById('rosterDate').value;
-      const names = document.getElementById('rosterNames').value.split(',').map(n => n.trim()).filter(Boolean);
-      await saveRoster(date, names);
-      document.getElementById('rosterNames').value = '';
-      await loadData();
-    });
+  // список всех студентов для замены
+  studentsCache.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.name;
+    opt.textContent = s.name;
+    toSelect.appendChild(opt);
+  });
+}
 
-        document.getElementById('replaceDate').addEventListener('change', async () => {
-      const roster = await getRoster();
-      populateReplaceOptions(roster);
-    });
+document.getElementById('replaceDate').addEventListener('change', async () => {
+  const roster = await getRoster();
+  populateReplaceOptions(roster);
+});
 
-    document.getElementById('replaceForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const from = document.getElementById('replaceFrom').value;
-      const to = document.getElementById('replaceTo').value;
-      const date = document.getElementById('replaceDate').value;
-      if (!from || !to || !date) return;
-      const roster = await getRoster();
-      if (roster[date]) {
-        roster[date] = roster[date].map(n => n === from ? to : n);
-        await saveRoster(date, roster[date]);
-        await loadData();
-      }
-    });
+document.getElementById('replaceForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const from = document.getElementById('replaceFrom').value;
+  const to = document.getElementById('replaceTo').value;
+  const date = document.getElementById('replaceDate').value;
+  if (!from || !to || !date) return;
 
-    async function loadData() {
-      try {
-        const students = await getStudents();
-        renderStudents(students);
-        const roster = await getRoster();
-        renderRoster(roster);
-      } catch (err) {
-        console.error("Ошибка загрузки:", err);
-      }
-    }
+  const roster = await getRoster();
+  if (roster[date]) {
+    roster[date] = roster[date].map(n => n === from ? to : n);
+    await saveRoster(date, roster[date]);
+    await loadData();
+  }
+});
 
-    loadData();
+async function loadData() {
+  try {
+    const students = await getStudents();
+    renderStudents(students);
+    const roster = await getRoster();
+    renderRoster(roster);
+  } catch (err) {
+    console.error("Ошибка загрузки:", err);
+  }
+}
+
+loadData();
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      
-      populateReplaceOptions(roster
