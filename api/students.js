@@ -10,6 +10,13 @@ export default async function handler(req, res) {
     if (file) {
       const response = await fetch(file.url);
       const text = await response.text();
+
+      // Проверка: если вместо JSON пришёл HTML
+      if (text.trim().startsWith('<')) {
+        console.error("students.json отсутствует или поврежден, получен HTML вместо JSON");
+        return [];
+      }
+
       try {
         students = JSON.parse(text);
       } catch (err) {
