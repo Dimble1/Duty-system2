@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Зам панель</title>
+  <title>Панель зама</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -26,13 +26,14 @@
     }
     button {
       margin: 6px 0;
-      padding: 10px;
+      padding: 12px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
       background: #3498db;
       color: #fff;
       width: 100%;
+      font-size: 1em;
     }
     button:hover { background: #2980b9; }
     .danger { background: #e74c3c; }
@@ -95,21 +96,35 @@
       const res = await fetch('/api/roster');
       return await res.json();
     }
+
     async function updateStudent(name, status, role) {
-      const res = await fetch('/api/students', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': 'zam' },
-        body: JSON.stringify({ name, status, role })
-      });
-      return await res.json();
+      try {
+        const res = await fetch('/api/students', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'x-user-role': 'zam' },
+          body: JSON.stringify({ name, status, role })
+        });
+        if (!res.ok) throw new Error("Ошибка сервера: " + res.status);
+        return await res.json();
+      } catch (err) {
+        alert("Не удалось обновить студента: " + err.message);
+        return studentsCache; // возвращаем старый список, чтобы не ломать рендер
+      }
     }
+
     async function updateRoster(date, names) {
-      const res = await fetch('/api/roster', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': 'zam' },
-        body: JSON.stringify({ date, names })
-      });
-      return await res.json();
+      try {
+        const res = await fetch('/api/roster', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-role': 'zam' },
+          body: JSON.stringify({ date, names })
+        });
+        if (!res.ok) throw new Error("Ошибка сервера: " + res.status);
+        return await res.json();
+      } catch (err) {
+        alert("Не удалось обновить дежурство: " + err.message);
+        return {};
+      }
     }
 
     function renderStudents(students) {
@@ -130,11 +145,15 @@
         btnSb.textContent = 'Сбежал';
         btnSb.className = 'danger';
         btnSb.onclick = async () => {
-          if (s.status === 'Сбежал') return alert("Этот студент уже отмечен как сбежавший");
           showOverlay();
-          const updated = await updateStudent(s.name, 'Сбежал', s.role);
-          renderStudents(updated);
-          hideOverlay();
+          try {
+            const updated = await updateStudent(s.name, 'Сбежал', s.role);
+            renderStudents(updated);
+          } catch (err) {
+            alert("Ошибка: " + err.message);
+          } finally {
+            hideOverlay();
+          }
         };
         el.appendChild(btnSb);
 
@@ -144,9 +163,14 @@
           btnActive.className = 'neutral';
           btnActive.onclick = async () => {
             showOverlay();
-            const updated = await updateStudent(s.name, 'Активен', s.role);
-            renderStudents(updated);
-            hideOverlay();
+            try {
+              const updated = await updateStudent(s.name, 'Активен', s.role);
+              renderStudents(updated);
+            } catch (err) {
+              alert("Ошибка: " + err.message);
+            } finally {
+              hideOverlay();
+            }
           };
           el.appendChild(btnActive);
         }
@@ -185,11 +209,16 @@
             btnReplace.textContent = 'Заменить';
             btnReplace.onclick = async () => {
               showOverlay();
-              const replacement = select.value;
-              const newNames = names.map(n => n === name ? replacement : n);
-              const updatedRoster = await updateRoster(date, newNames);
-              renderRoster(updatedRoster);
-              hideOverlay();
+              try {
+                const replacement = select.value;
+                const newNames = names.map(n => n === name ? replacement : n);
+                const updatedRoster = await updateRoster(date, newNames);
+                renderRoster(updatedRoster);
+              } catch (err) {
+                alert("Ошибка: " + err.message);
+              } finally {
+                hideOverlay();
+              }
             };
 
             row.appendChild(select);
@@ -212,9 +241,11 @@
         renderRoster(roster);
       } catch (err) {
         console.error("Ошибка загрузки:", err);
+        alert("Не удалось загрузить данные: " + err.message);
       }
     }
 
+    // Запускаем загрузку при открытии страницы
     loadData();
   </script>
 </body>
