@@ -73,7 +73,7 @@
     <h2 class="text-2xl font-bold text-indigo-600 mb-4 flex items-center gap-2">
       📅 Дежурства на 2 недели
     </h2>
-    <ul id="roster-list" class="space-y-2"></ul>
+    <div id="roster-board" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
   </div>
 
   <!-- Список студентов -->
@@ -122,21 +122,40 @@
     }
 
     function renderRoster(roster) {
-      const list = document.getElementById('roster-list');
-      list.innerHTML = '';
+      const board = document.getElementById('roster-board');
+      board.innerHTML = '';
       const todayDate = new Date().toISOString().split("T")[0];
       const twoWeeksLater = new Date();
       twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
 
-      Object.keys(roster).forEach(date => {
-        const d = new Date(date);
-        if (d >= new Date(todayDate) && d <= twoWeeksLater) {
-          const li = document.createElement('li');
-          li.className = "bg-indigo-50 border-l-4 border-indigo-400 p-3 rounded shadow-sm hover:scale-105 transition";
-          li.textContent = `${date}: ${roster[date].join(', ')}`;
-          list.appendChild(li);
+      let current = new Date(todayDate);
+      while (current <= twoWeeksLater) {
+        const dateStr = current.toISOString().split("T")[0];
+        const column = document.createElement("div");
+        column.className = "border rounded-lg shadow p-3";
+
+        const header = document.createElement("h3");
+        header.className = "text-center font-bold text-indigo-600 mb-2";
+        header.textContent = dateStr;
+        column.appendChild(header);
+
+        if (roster[dateStr]) {
+          roster[dateStr].forEach(name => {
+            const card = document.createElement("div");
+            card.className = "bg-indigo-50 p-2 mb-2 rounded shadow-sm";
+            card.textContent = name;
+            column.appendChild(card);
+          });
+        } else {
+          const card = document.createElement("div");
+          card.className = "bg-gray-100 p-2 rounded text-center italic text-gray-600";
+          card.textContent = "Нет дежурных";
+          column.appendChild(card);
         }
-      });
+
+        board.appendChild(column);
+        current.setDate(current.getDate() + 1);
+      }
     }
 
     function renderStudents(students) {
