@@ -38,6 +38,18 @@
     }
 
     html, body { min-height: 100%; overflow-y: auto; }
+
+    /* 🎨 Роли */
+    .role { display:inline-block; padding:2px 6px; border-radius:4px; color:#fff; font-size:0.75em; }
+    .starosta { background:#28a745; }   /* зелёный */
+    .zam { background:#ff9800; }        /* оранжевый */
+    .student { background:#0078d7; }    /* синий */
+
+    /* 🎨 Статусы */
+    .status { font-style:italic; font-size:0.75em; padding:2px 6px; border-radius:4px; display:inline-block; }
+    .status.sbejal { background:#f44336; color:#fff; }     /* красный */
+    .status.neprishel { background:#ffeb3b; color:#000; }  /* жёлтый */
+    .status.active { background:#e0e0e0; color:#333; }     /* серый */
   </style>
 </head>
 <body class="bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 min-h-screen p-6 relative">
@@ -107,10 +119,10 @@
       const todayDate = new Date().toISOString().split("T")[0];
 
       if (roster[todayDate]) {
-        roster[todayDate].forEach(name => {
+        roster[todayDate].forEach(s => {
           const li = document.createElement('li');
           li.className = "bg-green-100 border border-green-400 px-3 py-1 rounded-lg shadow-sm text-green-800 font-semibold";
-          li.textContent = name;
+          li.textContent = `${s.name} (${s.role}) — ${s.status}`;
           todayList.appendChild(li);
         });
       } else {
@@ -140,10 +152,19 @@
         column.appendChild(header);
 
         if (roster[dateStr]) {
-          roster[dateStr].forEach(name => {
+          roster[dateStr].forEach(s => {
+            const icon = s.role === "starosta" ? "👑" : s.role === "zam" ? "⭐" : "🎓";
+            let statusClass = "active";
+            if (s.status.toLowerCase() === "сбежал") statusClass = "sbejal";
+            if (s.status.toLowerCase() === "не пришел") statusClass = "neprishel";
+
             const card = document.createElement("div");
             card.className = "bg-indigo-50 p-2 mb-2 rounded shadow-sm";
-            card.textContent = name;
+            card.innerHTML = `
+              <div class="name">${icon} ${s.name}</div>
+              <div class="role ${s.role}">${s.role}</div>
+              <div class="status ${statusClass}">${s.status}</div>
+            `;
             column.appendChild(card);
           });
         } else {
@@ -162,43 +183,59 @@
       const list = document.getElementById('student-list');
       list.innerHTML = '';
       students.forEach(s => {
-        const li = document.createElement('li');
-        li.className = "bg-purple-50 border-l-4 border-purple-400 p-3 rounded shadow-sm flex justify-between hover:bg-purple-100 transition";
-        li.innerHTML = `
-          <span class="font-semibold">${s.name}</span>
-          <span class="italic text-gray-600">${s.status} — ${s.role}</span>
-        `;
-        list.appendChild(li);
-      });
+        let statusClass = "active";
+        if (s.status.toLowerCase() === "сбежал") statusClass = "sbejal";
+        if (s.status.toLowerCase() === "не пришел") statusClass = "neprishel";
+
+        const icon = s.role === "starosta" ? "👑" : s.role === "zam" ? "⭐" : "🎓";
+
+const li = document.createElement('li');
+li.className = "bg-purple-50 border-l-4 border-purple-400 p-3 rounded shadow-sm flex justify-between hover:bg-purple-100 transition";
+
+// определяем класс для статуса
+let statusClass = "active";
+if (s.status.toLowerCase() === "сбежал") statusClass = "sbejal";
+if (s.status.toLowerCase() === "не пришел") statusClass = "neprishel";
+
+li.innerHTML = `
+  <span class="font-semibold">${icon} ${s.name}</span>
+  <span>
+    <span class="role ${s.role}">${s.role}</span>
+    <span class="status ${statusClass}">${s.status}</span>
+  </span>
+`;
+
+list.appendChild(li);
+    });
+  }
+
+  // 📥 Загрузка данных
+  async function loadData() {
+    const roster = await getRoster();
+    renderToday(roster);
+    renderRoster(roster);
+
+    const students = await getStudents();
+    renderStudents(students);
+  }
+
+  loadData();
+  document.getElementById("refreshBtn").addEventListener("click", loadData);
+
+  // ❄️ Генерация снежинок
+  function createSnowflakes() {
+    const snowContainer = document.getElementById('snow');
+    for (let i = 0; i < 30; i++) {
+      const snowflake = document.createElement('div');
+      snowflake.className = 'snowflake';
+      snowflake.textContent = '❄';
+      snowflake.style.left = Math.random() * 100 + 'vw';
+      snowflake.style.animationDuration = (5 + Math.random() * 5) + 's';
+      snowflake.style.fontSize = (10 + Math.random() * 20) + 'px';
+      snowContainer.appendChild(snowflake);
     }
-
-    // 📥 Загрузка данных
-    async function loadData() {
-      const roster = await getRoster();
-      renderToday(roster);
-      renderRoster(roster);
-
-      const students = await getStudents();
-      renderStudents(students);
-    }
-
-    loadData();
-    document.getElementById("refreshBtn").addEventListener("click", loadData);
-
-    // ❄️ Генерация снежинок
-    function createSnowflakes() {
-      const snowContainer = document.getElementById('snow');
-      for (let i = 0; i < 30; i++) {
-        const snowflake = document.createElement('div');
-        snowflake.className = 'snowflake';
-        snowflake.textContent = '❄';
-        snowflake.style.left = Math.random() * 100 + 'vw';
-        snowflake.style.animationDuration = (5 + Math.random() * 5) + 's';
-        snowflake.style.fontSize = (10 + Math.random() * 20) + 'px';
-        snowContainer.appendChild(snowflake);
-      }
-    }
-    createSnowflakes();
-  </script>
+  }
+  createSnowflakes();
+</script>
 </body>
 </html>
