@@ -7,7 +7,7 @@
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
       margin: 20px;
-      background: #f4f6f9;
+      background: linear-gradient(135deg,#e0f7fa,#fce4ec);
       color: #333;
     }
     h1 { text-align: center; color: #2c3e50; }
@@ -38,12 +38,19 @@
     .danger:hover { background: #c0392b; }
     .neutral { background: #95a5a6; }
     .neutral:hover { background: #7f8c8d; }
-    select {
-      margin-left: 5px;
-      padding: 4px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-    }
+
+    /* Бейджи ролей */
+    .role { padding:2px 6px; border-radius:4px; color:#fff; font-size:0.8em; margin-left:6px; }
+    .starosta { background:#28a745; }
+    .zam { background:#ff9800; }
+    .student { background:#0078d7; }
+
+    /* Бейджи статусов */
+    .status { padding:2px 6px; border-radius:4px; font-size:0.8em; margin-left:6px; }
+    .status.Сбежал { background:#e74c3c; color:#fff; }
+    .status["Не пришёл"], .status["Не пришел"] { background:#ffeb3b; color:#000; }
+    .status.Активен { background:#95a5a6; color:#fff; }
+
     /* Оверлей */
     #overlay {
       position: fixed;
@@ -76,39 +83,32 @@
   <script>
     let studentsCache = [];
 
-    function showOverlay() {
-      document.getElementById('overlay').style.display = 'flex';
-    }
-    function hideOverlay() {
-      document.getElementById('overlay').style.display = 'none';
-    }
+    function showOverlay() { document.getElementById('overlay').style.display = 'flex'; }
+    function hideOverlay() { document.getElementById('overlay').style.display = 'none'; }
 
     async function getStudents() {
       const res = await fetch('/api/students');
       return await res.json();
     }
-
     async function getRoster() {
       const res = await fetch('/api/roster');
       return await res.json();
     }
-
     async function updateStudent(name, status, role) {
       const res = await fetch('/api/students', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
         body: JSON.stringify({ name, status, role })
       });
-      return await res.json(); // сервер возвращает обновлённый список студентов
+      return await res.json();
     }
-
     async function updateRoster(date, names) {
       const res = await fetch('/api/roster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-role': 'admin' },
         body: JSON.stringify({ date, names })
       });
-      return await res.json(); // сервер возвращает обновлённый список дежурных
+      return await res.json();
     }
 
     function renderStudents(students) {
@@ -118,7 +118,11 @@
       students.forEach(s => {
         const el = document.createElement('div');
         el.className = 'student';
-        el.textContent = `${s.name} — ${s.status} — ${s.role}`;
+        el.innerHTML = `
+          <strong>${s.name}</strong>
+          <span class="status ${s.status}">${s.status}</span>
+          <span class="role ${s.role}">${s.role}</span>
+        `;
 
         const btnZam = document.createElement('button');
         btnZam.textContent = 'Сделать замом';
@@ -150,6 +154,20 @@
           renderStudents(updated);
           hideOverlay();
         };
+
+        // Новая кнопка: вернуть сбежавшего в активные
+        if (s.status === 'Сбежал') {
+          const btnActive = document.createElement('button');
+          btnActive.textContent = 'Вернуть в активные';
+          btnActive.className = 'neutral';
+          btnActive.onclick = async () => {
+            showOverlay();
+            const updated = await updateStudent(s.name, 'Активен', s.role);
+            renderStudents(updated);
+            hideOverlay();
+          };
+          el.appendChild(btnActive);
+        }
 
         const btnRemoveRole = document.createElement('button');
         btnRemoveRole.textContent = 'Убрать роль';
@@ -188,18 +206,13 @@
             row.textContent = name;
 
             const select = document.createElement('select');
-            if (studentsCache.length === 0) {
+            studentsCache.forEach(st => {
               const opt = document.createElement('option');
-              opt.textContent = "Нет студентов";
+              opt.value = st.name;
+              opt.textContent = st.name;
+              if (st.name === name) opt.selected = true;
               select.appendChild(opt);
-            } else {
-              studentsCache.forEach(st => {
-                const opt = document.createElement('option');
-                opt.value = st.name;
-                opt.textContent = st.name;
-                select.appendChild(opt);
-              });
-            }
+            });
 
             const btnReplace = document.createElement('button');
             btnReplace.textContent = 'Заменить';
@@ -208,7 +221,7 @@
               const replacement = select.value;
               const newNames = names.map(n => n === name ? replacement : n);
               const updatedRoster = await updateRoster(date, newNames);
-              renderRoster(updatedRoster);
+              enderRoster(updatedRoster);
               hideOverlay();
             };
 
