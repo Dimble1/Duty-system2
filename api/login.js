@@ -5,9 +5,9 @@ export default function handler(req, res) {
 
   // ⚡ Берём данные из .env
   const users = {
-    [process.env.ADMIN_USER]: { password: process.env.ADMIN_PASSWORD, role: "admin" },
-    [process.env.ZAM_USER]: { password: process.env.ZAM_PASSWORD, role: "zam" },
-    [process.env.TEACHER_USER]: { password: process.env.TEACHER_PASSWORD, role: "teacher" }
+    [process.env.ADMIN_USERNAME]: { password: process.env.ADMIN_PASSWORD, role: "admin" },
+    [process.env.ZAM_USERNAME]: { password: process.env.ZAM_PASSWORD, role: "zam" },
+    [process.env.TEACHER_USERNAME]: { password: process.env.TEACHER_PASSWORD, role: "teacher" }
   };
 
   if (users[username] && users[username].password === password) {
@@ -16,3 +16,4 @@ export default function handler(req, res) {
     res.status(401).json({ error: "Неверный логин или пароль" });
   }
 }
+
