@@ -2,129 +2,95 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Учёт посещаемости — Учитель</title>
-  <link rel="icon" href="/favicon.ico">
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      padding: 20px;
-      background: linear-gradient(135deg,#f0f9ff,#fff0f6);
-    }
-    header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    header img {
-      height: 60px;
-      vertical-align: middle;
-    }
-    h1 {
-      display: inline-block;
-      margin-left: 10px;
-      color: #2c3e50;
-    }
-    .student {
-      background: #fff;
-      border-radius: 8px;
-      padding: 15px;
-      margin: 12px 0;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      transition: transform 0.2s;
-    }
-    .student:hover { transform: scale(1.02); }
-    label { margin-right: 10px; }
-    select, input[type="text"] {
-      margin-left: 10px;
-      padding: 6px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-    }
-    .reason { display: none; margin-top: 8px; }
-    button {
-      margin-top: 20px;
-      padding: 12px 24px;
-      font-size: 1em;
-      background: #3498db;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    button:hover { background: #2980b9; }
-  </style>
+  <title>Учитель — Система дежурств</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <header>
-    <img src="/favicon.ico" alt="Логотип">
-    <h1>Учёт посещаемости</h1>
-  </header>
+<body class="bg-gradient-to-r from-green-200 via-blue-200 to-indigo-200 min-h-screen p-6">
 
-  <form id="form">
-    <div id="list"></div>
-    <button type="submit">📤 Отправить в Telegram</button>
-  </form>
+  <h1 class="text-3xl font-bold text-center text-indigo-700 mb-8">📋 Список студентов</h1>
+
+  <div id="students" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3"></div>
+
+  <div class="mt-8 text-center">
+    <button id="sendTelegram" class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700">
+      📤 Отправить в Telegram
+    </button>
+  </div>
 
   <script>
+    let studentsData = [];
+
     async function loadStudents() {
-      const res = await fetch('/api/students');
+      const res = await fetch("/api/students");
       const students = await res.json();
-      const list = document.getElementById('list');
-      list.innerHTML = "";
+      studentsData = students;
+
+      const container = document.getElementById("students");
+      container.innerHTML = "";
 
       students.forEach(s => {
-        const div = document.createElement('div');
-        div.className = 'student';
-        div.innerHTML = `
-          <strong>${s.name}</strong><br>
-          <label>Статус:
-            <select id="status-${s.name}">
-              <option value="Пришёл">Пришёл</option>
-              <option value="Опоздал">Опоздал</option>
-              <option value="Не пришёл">Не пришёл</option>
-            </select>
-          </label>
-          <div class="reason" id="reason-block-${s.name}">
-            <label>Причина:
-              <input type="text" id="reason-${s.name}" placeholder="Причина отсутствия">
-            </label>
-          </div>
-        `;
-        list.appendChild(div);
+        const card = document.createElement("div");
+        card.className = "p-4 bg-white rounded-xl shadow flex flex-col gap-2";
 
-        const select = div.querySelector(`#status-${s.name}`);
-        const reasonBlock = div.querySelector(`#reason-block-${s.name}`);
-        select.addEventListener('change', () => {
-          reasonBlock.style.display = select.value === "Не пришёл" ? "block" : "none";
+        const name = document.createElement("h2");
+        name.className = "font-bold text-lg text-indigo-700";
+        name.textContent = s.name;
+
+        const select = document.createElement("select");
+        select.className = "border rounded p-2";
+        ["Пришёл", "Опоздал", "Не пришёл"].forEach(opt => {
+          const option = document.createElement("option");
+          option.value = opt;
+          option.textContent = opt;
+          select.appendChild(option);
         });
+
+        const badge = document.createElement("span");
+        badge.className = "inline-block px-3 py-1 rounded text-white text-sm bg-green-500";
+        badge.textContent = "Пришёл";
+
+        select.addEventListener("change", () => {
+          if (select.value === "Пришёл") {
+            badge.textContent = "Пришёл";
+            badge.className = "inline-block px-3 py-1 rounded text-white text-sm bg-green-500";
+          } else if (select.value === "Опоздал") {
+            badge.textContent = "Опоздал";
+            badge.className = "inline-block px-3 py-1 rounded text-white text-sm bg-yellow-500";
+          } else {
+            badge.textContent = "Не пришёл";
+            badge.className = "inline-block px-3 py-1 rounded text-white text-sm bg-red-500";
+          }
+          // сохраняем статус в массиве
+          const student = studentsData.find(st => st.name === s.name);
+          if (student) student.status = select.value;
+        });
+
+        card.appendChild(name);
+        card.appendChild(select);
+        card.appendChild(badge);
+        container.appendChild(card);
       });
     }
 
-    document.getElementById('form').onsubmit = async (e) => {
-      e.preventDefault();
-      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const students = document.querySelectorAll('.student');
-      const data = Array.from(students).map(div => {
-        const name = div.querySelector('strong').textContent;
-        const status = div.querySelector('select').value;
-        const reason = div.querySelector('input')?.value || "";
-        return {
-          name,
-          status,
-          reason: status === "Не пришёл" ? reason : "",
-          date: today
-        };
+    // 📤 Отправка в Telegram
+    document.getElementById("sendTelegram").addEventListener("click", async () => {
+      const today = new Date().toLocaleDateString("ru-RU");
+      let message = `📅 Отчёт за ${today}\n\n`;
+
+      studentsData.forEach(s => {
+        message += `${s.name} — ${s.status || "Пришёл"}\n`;
       });
 
-      await fetch('/api/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+      // ⚡ Отправляем на сервер, который пересылает в Telegram
+      await fetch("/api/sendTelegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: message })
       });
-      alert("Отправлено в Telegram!");
-    };
 
-    // ⚡ Загружаем список студентов при открытии страницы
+      alert("Отчёт отправлен в Telegram ✅");
+    });
+
     loadStudents();
   </script>
 </body>
