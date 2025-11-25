@@ -8,19 +8,20 @@
 <body class="bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 min-h-screen flex items-center justify-center">
 
   <div class="bg-white p-8 rounded-xl shadow-lg w-96">
-    <h1 class="text-2xl font-bold text-center text-indigo-700 mb-6">🔑 Вход для админа/зама</h1>
+    <h1 class="text-2xl font-bold text-center text-indigo-700 mb-6">🔑 Вход в систему</h1>
     <form id="loginForm" class="space-y-4">
-      <input type="text" id="username" placeholder="Логин" class="w-full border p-2 rounded"/>
-      <input type="password" id="password" placeholder="Пароль" class="w-full border p-2 rounded"/>
+      <input type="text" id="username" placeholder="Логин" class="w-full border p-2 rounded" required/>
+      <input type="password" id="password" placeholder="Пароль" class="w-full border p-2 rounded" required/>
       <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">Войти</button>
     </form>
+    <div id="error" class="text-red-600 text-center mt-4 hidden">❌ Неверный логин или пароль</div>
   </div>
 
   <script>
     document.getElementById("loginForm").addEventListener("submit", async e => {
       e.preventDefault();
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
 
       const res = await fetch("/api/login", {
         method: "POST",
@@ -29,13 +30,17 @@
       });
 
       const data = await res.json();
-      if (data.role) {
+      if (data.token) {
+        // сохраняем токен и роль
+        localStorage.setItem("token", data.token);
         localStorage.setItem("role", data.role);
+
+        // редирект по роли
         if (data.role === "admin") window.location.href = "admin.html";
         else if (data.role === "zam") window.location.href = "zam.html";
-        else window.location.href = "index.html";
+        else window.location.href = "teacher.html";
       } else {
-        alert("❌ Неверный логин или пароль");
+        document.getElementById("error").classList.remove("hidden");
       }
     });
   </script>
