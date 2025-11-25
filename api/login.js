@@ -3,11 +3,11 @@ export default function handler(req, res) {
 
   const { username, password } = req.body;
 
-  // ⚡ Простая база пользователей (можно вынести в .env)
+  // ⚡ Берём данные из .env
   const users = {
-    admin: { password: "admin123", role: "admin" },
-    zam: { password: "zam123", role: "zam" },
-    teacher: { password: "teacher123", role: "teacher" }
+    [process.env.ADMIN_USER]: { password: process.env.ADMIN_PASSWORD, role: "admin" },
+    [process.env.ZAM_USER]: { password: process.env.ZAM_PASSWORD, role: "zam" },
+    [process.env.TEACHER_USER]: { password: process.env.TEACHER_PASSWORD, role: "teacher" }
   };
 
   if (users[username] && users[username].password === password) {
