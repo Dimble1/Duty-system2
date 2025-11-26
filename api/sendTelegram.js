@@ -1,5 +1,4 @@
-import fs from "fs";
-import path from "path";
+import FormData from "form-data";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Метод не поддерживается" });
@@ -17,23 +16,26 @@ export default async function handler(req, res) {
     csv += `${today},"${s.name}",${s.status || "Пришёл"}\n`;
   });
 
-  // Сохраняем во временный файл
-  const filePath = path.join("/tmp", `report_${Date.now()}.csv`);
-  fs.writeFileSync(filePath, csv);
-
-  // Отправляем файл в Telegram
+  // Создаём FormData
   const formData = new FormData();
   formData.append("chat_id", process.env.TELEGRAM_CHAT_ID);
-  formData.append("document", new Blob([csv], { type: "text/csv" }), `report_${today}.csv`);
+  formData.append("document", Buffer.from(csv), `report_${today}.csv`);
 
   const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendDocument`;
-  const response = await fetch(url, { method: "POST", body: formData });
 
-  const data = await response.json();
-  if (!data.ok) {
-    return res.status(500).json({ error: "Ошибка Telegram API", details: data });
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+    if (!data.ok) {
+      return res.status(500).json({ error: "Ошибка Telegram API", details: data });
+    }
+
+    return res.status(200).json({ success: true, telegram: data });
+  } catch (err) {
+    return res.status(500).json({ error: "Ошибка отправки", details: err.message });
   }
-
-  return res.status(200).json({ success: true, telegram: data });
 }
-
