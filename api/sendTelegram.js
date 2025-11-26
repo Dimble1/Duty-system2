@@ -1,5 +1,3 @@
-import FormData from "form-data";
-
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Метод не поддерживается" });
 
@@ -16,20 +14,17 @@ export default async function handler(req, res) {
     csv += `${today},"${s.name}",${s.status || "Пришёл"}\n`;
   });
 
-  // Создаём FormData
+  // Используем встроенный FormData и Blob
   const formData = new FormData();
   formData.append("chat_id", process.env.TELEGRAM_CHAT_ID);
-  formData.append("document", Buffer.from(csv), `report_${today}.csv`);
+  formData.append("document", new Blob([csv], { type: "text/csv" }), `report_${today}.csv`);
 
   const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendDocument`;
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      body: formData
-    });
-
+    const response = await fetch(url, { method: "POST", body: formData });
     const data = await response.json();
+
     if (!data.ok) {
       return res.status(500).json({ error: "Ошибка Telegram API", details: data });
     }
